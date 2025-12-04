@@ -5,6 +5,7 @@ import AuthProvider from "@/features/auth/components/AuthProvider";
 import SessionWrapper from "@/features/auth/components/SessionWrapper"; // Import the wrapper
 import Navbar from "@/components/layout/Navbar/Navbar";
 import Footer from "@/components/layout/Footer";
+import CartSync from "@/features/cart/components/CartSync";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -23,6 +24,7 @@ export default function RootLayout({ children }) {
           <StoreProvider>
             {/* 3. AuthProvider syncs Session -> Redux */}
             <AuthProvider>
+              <CartSync/>
               {children}
             </AuthProvider>
           </StoreProvider>

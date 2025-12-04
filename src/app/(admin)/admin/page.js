@@ -4,7 +4,7 @@ import React from 'react'
 
 function page() {
   return (
-    <div className='max-h-[700px] overflow-y-scroll no-scrollbar'>
+    <div className='min-h-[calc(100vh-140px)] max-h-[calc(100vh-140px)] overflow-y-scroll no-scrollbar'>
       <AllProducts/>
     </div>
   )

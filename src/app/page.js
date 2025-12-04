@@ -12,7 +12,7 @@ export default async function Home() {
       <header className='text-center'>
         <Navbar />
       </header>
-      <main className='min-h-screen bg-neutral-50 p-8 '>
+      <main className='min-h-[calc(100vh-140px)] bg-neutral-50 p-8 '>
         <AllProducts />
       </main>
       <Footer />

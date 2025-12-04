@@ -1,39 +1,73 @@
 import { createSlice } from '@reduxjs/toolkit';
 
 const initialState = {
-  items: [],      // Array of Hot Wheels cars
+  items: [],      
   totalQuantity: 0,
   totalPrice: 0,
+  isLoaded: false,
 };
 
 const cartSlice = createSlice({
   name: 'cart',
   initialState,
   reducers: {
-    // Action: Add Item
+    setCart: (state, action) => {
+      state.items = action.payload.items || [];
+      state.totalQuantity = action.payload.totalQuantity || 0;
+      state.totalPrice = action.payload.totalPrice || 0;
+      state.isLoaded = true;
+    },
+
     addToCart: (state, action) => {
       const newItem = action.payload;
-      const existingItem = state.items.find((item) => item._id === newItem._id);
+      // FIX: Check for both _id (DB standard) and id (Component standard)
+      const itemId = newItem._id || newItem.id;
+
+      if (!itemId) {
+        console.error("Cart Error: Item has no ID", newItem);
+        return; 
+      }
+
+      const existingItem = state.items.find((item) => item._id === itemId);
 
       if (!existingItem) {
-        // Redux Toolkit allows us to write "mutating" logic in reducers.
-        // It doesn't actually mutate the state because it uses the Immer library internally.
         state.items.push({
-          _id: newItem._id,
+          _id: itemId, // Standardize on _id internally
           name: newItem.name,
           price: newItem.price,
           image: newItem.image,
-          quantity: 1,
+          quantity: newItem.quantity || 1,
         });
       } else {
-        existingItem.quantity++;
+        existingItem.quantity += (newItem.quantity || 1);
       }
       
-      state.totalQuantity++;
-      state.totalPrice += newItem.price;
+      // Update totals
+      const qtyToAdd = newItem.quantity || 1;
+      state.totalQuantity += qtyToAdd;
+      state.totalPrice += newItem.price * qtyToAdd;
+      state.isLoaded = true;
     },
 
-    // Action: Remove Item completely
+    decrementItem: (state, action) => {
+      const id = action.payload;
+      const existingItem = state.items.find(item => item._id === id);
+
+      if (existingItem) {
+        const itemPrice = existingItem.price; // Capture price before modification
+
+        if (existingItem.quantity === 1) {
+           state.items = state.items.filter(item => item._id !== id);
+        } else {
+           existingItem.quantity--;
+        }
+        
+        state.totalQuantity--;
+        state.totalPrice -= itemPrice;
+        state.isLoaded = true;
+      }
+    },
+
     removeFromCart: (state, action) => {
       const id = action.payload;
       const existingItem = state.items.find(item => item._id === id);
@@ -43,9 +77,9 @@ const cartSlice = createSlice({
         state.totalQuantity -= existingItem.quantity;
         state.totalPrice -= (existingItem.price * existingItem.quantity);
       }
+      state.isLoaded = true;
     },
     
-    // Action: Clear Cart
     clearCart: (state) => {
       state.items = [];
       state.totalQuantity = 0;
@@ -54,5 +88,5 @@ const cartSlice = createSlice({
   },
 });
 
-export const { addToCart, removeFromCart, clearCart } = cartSlice.actions;
+export const { addToCart, removeFromCart, clearCart, setCart, decrementItem } = cartSlice.actions;
 export default cartSlice.reducer;

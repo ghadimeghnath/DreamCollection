@@ -20,7 +20,7 @@ export default function ProductCard({ product }) {
         id: product._id,
         name: product.name,
         price: product.price,
-        image: displayImage,
+        image: displayImage,  
         quantity: 1,
       })
     );
@@ -66,13 +66,8 @@ export default function ProductCard({ product }) {
               </h3>
             </div>
             <span className='font-mono text-xs md:text-sm'>${product.price}</span>
-            <div className='flex flex-col md:flex-row gap-0.5 justify-between w-full mt-2'>
-              <Button variant={"outline"} size={"sm"} onClick={handleAddToCart}>
-                Add to cart
-              </Button>
-              <Button size={"sm"} onClick={handleBuyNow}>Buy now</Button>
-            </div>
           </div>
+          <p className="truncate text-xs text-neutral-600">{product.description}</p>
         </div>
       </Link>
     </motion.div>

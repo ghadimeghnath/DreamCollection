@@ -30,7 +30,7 @@ const LoginForm = () => {
   };
 
   return (
-    <div className="flex flex-col gap-4 w-full max-w-sm mx-auto mt-10 p-6 border rounded-lg shadow-md">
+    <div className=" flex flex-col gap-4 w-full max-w-sm mx-auto mt-10 p-6 border rounded-lg shadow-md">
       <h1 className="text-2xl font-bold text-center">Login</h1>
       
       <form onSubmit={handleSubmit} className="flex flex-col gap-3">
