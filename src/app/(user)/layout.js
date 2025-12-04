@@ -1,7 +1,7 @@
 import Navbar from "@/components/layout/Navbar/Navbar";
 import Footer from "@/components/layout/Footer";
 
-export default function RootLayout({ children }) {
+export default function UserLayout({ children }) {
   return (
     <>
        <header className='text-center'>

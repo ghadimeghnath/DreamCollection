@@ -1,5 +1,6 @@
 import React from "react";
 import Link from "next/link";
+import { DeleteIcon, Edit, FileEdit, TrashIcon } from "lucide-react";
 
 function AdminSidebar() {
   const dashboardicon = (
@@ -40,34 +41,17 @@ function AdminSidebar() {
     </svg>
   );
 
-  const chaticon = (
-    <svg
-      className='w-6 h-6'
-      aria-hidden='true'
-      xmlns='http://www.w3.org/2000/svg'
-      width='24'
-      height='24'
-      fill='none'
-      viewBox='0 0 24 24'
-    >
-      <path
-        stroke='currentColor'
-        strokeLinecap='round'
-        strokeLinejoin='round'
-        strokeWidth='2'
-        d='M7 9h5m3 0h2M7 12h2m3 0h5M5 5h14a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1h-6.616a1 1 0 0 0-.67.257l-2.88 2.592A.5.5 0 0 1 8 18.477V17a1 1 0 0 0-1-1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1Z'
-      />
-    </svg>
-  );
+
 
   const sidebarLinks = [
-    { name: "Dashboard", path: "/", icon: dashboardicon },
-    { name: "Overview", path: "/overview", icon: overviewicon },
-    { name: "Chat", path: "/chat", icon: chaticon },
+    { name: "All Products", path: "/admin/", icon: dashboardicon },
+    { name: "Create", path: "/admin/create", icon: overviewicon },
+    { name: "Edit", path: "/admin/edit", icon: <Edit/> },
+    { name: "Delete", path: "/admin/delete", icon: <TrashIcon/> },
   ];
 
   return (
-    <div className='md:w-64 w-16 border-r h-[550px] text-base border-gray-300 pt-4 flex flex-col transition-all duration-300'>
+    <div className='md:w-64 w-16 border-r max-h-[550px] text-base  border-gray-300 pt-4 flex flex-col transition-all duration-300'>
       {sidebarLinks.map((item, index) => (
         <Link
           href={item.path}

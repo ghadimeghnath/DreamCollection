@@ -23,12 +23,7 @@ export default function RootLayout({ children }) {
           <StoreProvider>
             {/* 3. AuthProvider syncs Session -> Redux */}
             <AuthProvider>
-                   <header className='text-center'>
-                            <Navbar />
-                          </header>
               {children}
-      <Footer />
-
             </AuthProvider>
           </StoreProvider>
         </SessionWrapper>
