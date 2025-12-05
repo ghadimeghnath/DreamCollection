@@ -8,9 +8,9 @@ export default async function ProductPage({ params }) {
   
   const product = await getProductBySlug(slug);
 
-//   if (!product) {
-//     return notFound();
-//   }
+  if (!product) {
+    return notFound();
+  }
 
   return (
     <div className="flex justify-center items-center py-5">

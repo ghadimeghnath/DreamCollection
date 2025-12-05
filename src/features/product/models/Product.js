@@ -15,7 +15,7 @@ const ProductSchema = new mongoose.Schema({
   },
   category: {
     type: String,
-    required: true, // e.g., "Muscle", "JDM", "Exotic"
+    required: true,
   },
   series: { 
     type: String, 
@@ -25,8 +25,6 @@ const ProductSchema = new mongoose.Schema({
   year: { 
     type: Number, 
     required: true,
-    min: [1968, 'Year must be 1968 or later'], 
-    max: [new Date().getFullYear() + 1, 'Year cannot be in the future']
   },
   images: [{ 
     type: String, 
@@ -38,22 +36,21 @@ const ProductSchema = new mongoose.Schema({
     min: [0, 'Price cannot be negative'] 
   },
   originalPrice: {
-    type: Number, // Optional: for showing the "crossed out" MRP
-  },
-  rating: {
-    type: Number,
-    default: 0,
-    min: 0,
-    max: 5
+    type: Number, 
   },
   inStock: { 
     type: Boolean, 
     default: true 
   },
   description: { 
-    type: String, // Stored as a paragraph, we will split it by newlines in UI
+    type: String,
     required: false
-  }
+  },
+  // --- SEO Fields ---
+  seoTitle: { type: String, trim: true },
+  seoDescription: { type: String, trim: true },
+  seoKeywords: { type: String, trim: true }, // Comma separated strings
+  
 }, { timestamps: true });
 
 ProductSchema.index({ series: 1, year: -1 });

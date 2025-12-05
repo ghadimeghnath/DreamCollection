@@ -21,7 +21,6 @@ export const authOptions = {
         
         const user = await User.findOne({ email: credentials.email });
         
-        // Check if user exists and has a password (google users might not have one)
         if (!user || !user.password) {
            throw new Error("Invalid email or password");
         }
@@ -32,7 +31,6 @@ export const authOptions = {
            throw new Error("Invalid email or password");
         }
 
-        // Return the user object (NextAuth will use this to build the token)
         return {
             id: user._id.toString(),
             name: user.name,
@@ -45,14 +43,12 @@ export const authOptions = {
   ],
   callbacks: {
     async signIn({ user, account }) {
-      // 1. Logic for Google Provider
       if (account.provider === "google") {
         try {
           await dbConnect();
           const existingUser = await User.findOne({ email: user.email });
 
           if (!existingUser) {
-            // Create new user if they don't exist
             await User.create({
               name: user.name,
               email: user.email,
@@ -61,42 +57,51 @@ export const authOptions = {
               isAdmin: false,
             });
           }
-          return true; // Allow sign in
+          return true;
         } catch (error) {
-          console.error("Error saving Google user to DB:", error);
-          return false; // Deny sign in on error
+          console.error("Error saving Google user:", error);
+          return false;
         }
       }
-      // 2. Logic for Credentials (already verified in authorize)
       return true; 
     },
-    async session({ session }) {
-      // 3. Attach DB ID and Role to the session for the frontend to use
-      try {
-        await dbConnect();
-        const dbUser = await User.findOne({ email: session.user.email });
-        if (dbUser) {
-            session.user.id = dbUser._id.toString();
-            session.user.role = dbUser.isAdmin ? "admin" : "user";
-            // Ensure the image is up to date from DB if needed, or stick to Google's
-            session.user.image = dbUser.image || session.user.image;
-        }
-      } catch (error) {
-          console.error("Error fetching user session data:", error);
-      }
-      return session;
-    },
-    async jwt({ token, user }) {
-        // Pass data from authorize() to the token
+    
+    async jwt({ token, user, account }) {
+        // 1. Initial Login (Credentials or Google)
         if (user) {
-            token.role = user.role;
             token.id = user.id;
+            token.role = user.role;
         }
+
+        // 2. Google Login Fix: Ensure we have the DB _id, not the Google sub ID
+        // We run this check if we have an account (sign in) OR if the current ID is not a Mongo ID
+        const isMongoId = /^[0-9a-fA-F]{24}$/.test(token.id);
+        
+        if (!isMongoId || (account && account.provider === "google")) {
+            await dbConnect();
+            const dbUser = await User.findOne({ email: token.email });
+            if (dbUser) {
+                token.id = dbUser._id.toString(); // CRITICAL: Swap to Mongo ID
+                token.role = dbUser.isAdmin ? "admin" : "user";
+                // Update image if changed in DB
+                if (dbUser.image) token.picture = dbUser.image; 
+            }
+        }
+        
         return token;
+    },
+
+    async session({ session, token }) {
+        if (session.user) {
+            session.user.id = token.id;
+            session.user.role = token.role;
+            session.user.image = token.picture;
+        }
+        return session;
     }
   },
   pages: {
-    signIn: "/login", // Redirect here if auth fails
+    signIn: "/login",
   },
   session: {
     strategy: "jwt",

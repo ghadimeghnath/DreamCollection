@@ -4,14 +4,20 @@ import dbConnect from '@/lib/db';
 import Address from './models/Address';
 import Order from '@/features/order/models/Order';
 import { revalidatePath } from 'next/cache';
+import mongoose from 'mongoose';
 
 // --- Address Actions ---
 
 export const getUserAddresses = async (userId) => {
   await dbConnect();
+  
+  if (!mongoose.Types.ObjectId.isValid(userId)) {
+    console.error("Invalid User ID in getUserAddresses:", userId);
+    return [];
+  }
+
   const addresses = await Address.find({ userId }).lean();
   
-  // FIX: Manually serialize ObjectId and Date fields to strings
   return addresses.map(addr => ({
     ...addr,
     _id: addr._id.toString(),
@@ -24,6 +30,11 @@ export const getUserAddresses = async (userId) => {
 export const addAddress = async (userId, addressData) => {
   await dbConnect();
   
+  // FIX: Validate ID format to prevent App Crash
+  if (!mongoose.Types.ObjectId.isValid(userId)) {
+    return { error: "Session invalid. Please sign out and sign in again." };
+  }
+
   // Enforce Max 2 rule
   const count = await Address.countDocuments({ userId });
   if (count >= 2) {
@@ -38,7 +49,10 @@ export const addAddress = async (userId, addressData) => {
 export const updateAddress = async (userId, addressId, addressData) => {
   await dbConnect();
 
-  // Find and update strictly checking userId for security
+  if (!mongoose.Types.ObjectId.isValid(userId)) {
+    return { error: "Session invalid." };
+  }
+
   const updatedAddress = await Address.findOneAndUpdate(
     { _id: addressId, userId }, 
     { ...addressData },
@@ -64,9 +78,13 @@ export const deleteAddress = async (addressId) => {
 
 export const getUserOrders = async (userId) => {
   await dbConnect();
+
+  if (!mongoose.Types.ObjectId.isValid(userId)) {
+    return [];
+  }
+
   const orders = await Order.find({ userId }).sort({ createdAt: -1 }).lean();
   
-  // FIX: Serialize userId, dates, and nested item IDs
   return orders.map(order => ({
     ...order,
     _id: order._id.toString(),

@@ -34,7 +34,6 @@ function Footer() {
                             <path d="M16 11.37a4 4 0 1 1-7.914 1.173A4 4 0 0 1 16 11.37m1.5-4.87h.01" stroke="#fff" strokeOpacity=".5" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
                         </svg>
                     </a>
-                  
                 </div>
                 </div>
             </footer>

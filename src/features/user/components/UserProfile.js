@@ -10,7 +10,7 @@ export default function UserProfile({ user, addresses, orders }) {
   const [activeTab, setActiveTab] = useState("orders");
 
   return (
-    <div className="max-w-6xl mx-auto px-4 py-12 flex flex-col md:flex-row gap-8">
+    <div className="max-w-6xl mx-auto px-4 py-7 flex flex-col md:flex-row gap-8">
        
        {/* Sidebar */}
        <aside className="w-full md:w-64 shrink-0 space-y-6">
@@ -46,7 +46,7 @@ export default function UserProfile({ user, addresses, orders }) {
              <hr className="my-2 border-gray-100" />
              <button 
                 onClick={() => signOut({ callbackUrl: '/' })}
-                className="w-full flex items-center gap-3 px-4 py-3 rounded-lg font-medium text-red-600 hover:bg-red-50 transition"
+                className="w-full flex items-center gap-3 px-4 rounded-lg text-sm font-medium text-red-600 hover:bg-red-50 transition"
              >
                 <LogOut size={20} /> Logout
              </button>
