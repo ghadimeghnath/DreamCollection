@@ -36,8 +36,8 @@ export const getProductBySlug = async (slug) => {
     return {
       ...product,
       _id: product._id.toString(),
-      createdAt: product.createdAt,
-      updatedAt: product.updatedAt,
+      createdAt: product.createdAt.toISOString(),
+      updatedAt: product.updatedAt.toISOString(),
     };
   } catch (error) {
     console.error("Error fetching product by slug:", error);
