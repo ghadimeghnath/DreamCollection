@@ -4,18 +4,32 @@ import dbConnect from '@/lib/db';
 import Product from '@/features/product/models/Product';
 import { revalidatePath } from 'next/cache';
 
-// Fetch all products (Optimized for Public View)
+// Fetch all products
 export async function getProducts() {
   await dbConnect();
-  // Lean queries are faster as they return POJOs (Plain Old JS Objects)
   const products = await Product.find({}).sort({ createdAt: -1 }).lean();
   
-  // Convert _id and dates to string for serialization
   return products.map(product => ({
     ...product,
     _id: product._id.toString(),
-    createdAt: product.createdAt,
-    updatedAt: product.updatedAt,
+    createdAt: product.createdAt?.toISOString() || new Date().toISOString(),
+    updatedAt: product.updatedAt?.toISOString() || new Date().toISOString(),
+  }));
+}
+
+// Fetch products by Category
+export async function getProductsByCategory(category) {
+  await dbConnect();
+  // Decode URL (e.g. "Muscle%20Cars" -> "Muscle Cars")
+  const decodedCategory = decodeURIComponent(category);
+  
+  const products = await Product.find({ category: decodedCategory }).sort({ createdAt: -1 }).lean();
+  
+  return products.map(product => ({
+    ...product,
+    _id: product._id.toString(),
+    createdAt: product.createdAt?.toISOString() || new Date().toISOString(),
+    updatedAt: product.updatedAt?.toISOString() || new Date().toISOString(),
   }));
 }
 
@@ -23,21 +37,20 @@ export async function getProducts() {
 export const getProductBySlug = async (slug) => {
   try {
     await dbConnect();
-
-    // FIX: Decode the slug to handle URL encoding
-    // This turns "1969%20Chevy%20Camaro%20SS" back into "1969 Chevy Camaro SS"
     const decodedSlug = decodeURIComponent(slug);
-
-    const product = await Product.findOne({ name: decodedSlug }).lean();
+    
+    // Check both slug and name for backward compatibility
+    const product = await Product.findOne({ 
+      $or: [{ slug: decodedSlug }, { name: decodedSlug }] 
+    }).lean();
     
     if (!product) return null;
 
-    // Serialize MongoDB object
     return {
       ...product,
       _id: product._id.toString(),
-      createdAt: product.createdAt.toISOString(),
-      updatedAt: product.updatedAt.toISOString(),
+      createdAt: product.createdAt?.toISOString() || new Date().toISOString(),
+      updatedAt: product.updatedAt?.toISOString() || new Date().toISOString(),
     };
   } catch (error) {
     console.error("Error fetching product by slug:", error);
@@ -49,7 +62,6 @@ export const getProductBySlug = async (slug) => {
 export async function toggleStock(id, currentStatus) {
   await dbConnect();
   await Product.findByIdAndUpdate(id, { inStock: !currentStatus });
-  
   revalidatePath('/'); 
   revalidatePath('/admin');
 }

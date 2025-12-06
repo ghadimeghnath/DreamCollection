@@ -30,7 +30,7 @@ export default function UserProfile({ user, addresses, orders }) {
              </div>
           </div>
 
-          <nav className="space-y-1">
+         <nav className="space-y-1">
              <button 
                 onClick={() => setActiveTab("orders")}
                 className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg font-medium transition ${activeTab === 'orders' ? 'bg-indigo-50 text-indigo-600' : 'text-gray-600 hover:bg-gray-50'}`}

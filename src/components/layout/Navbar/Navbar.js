@@ -103,6 +103,7 @@ function Navbar() {
                         </div>
                     </Link>
                 )}
+                
 
                 {/* Hamburger */}
                 <button onClick={() => setOpen(!open)} aria-label="Menu">
