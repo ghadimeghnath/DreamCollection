@@ -64,7 +64,7 @@ export default function AdminProductTable({ initialProducts }) {
                                                 <Pencil size={16} />
                                             </button>
                                         </Link>
-                                        <Link href={`/products/${product.slug}`} target="_blank" className="hidden sm:inline-block">
+                                        <Link href={`/products/${product.category}/${product.slug}`} target="_blank" className="hidden sm:inline-block">
                                             <button className="rounded-md p-2 text-gray-400 hover:bg-gray-100 hover:text-indigo-600 transition" title="View">
                                                 <ExternalLink size={16} />
                                             </button>

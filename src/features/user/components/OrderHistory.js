@@ -1,6 +1,8 @@
 "use client";
 
 import { Badge } from "@/components/ui/badge";
+import Link from "next/link";
+import { ExternalLink } from "lucide-react";
 
 export default function OrderHistory({ orders }) {
   if (orders.length === 0) {
@@ -32,13 +34,23 @@ export default function OrderHistory({ orders }) {
                 </div>
                 <div>
                      <p className="text-gray-500 uppercase text-xs font-bold tracking-wider">Order #</p>
-                     <p className="font-medium text-gray-900 truncate w-24 md:w-auto">{order._id}</p>
+                     <p className="font-medium text-gray-900 truncate w-24 md:w-auto">{order._id.slice(-6).toUpperCase()}</p>
                 </div>
             </div>
             
-            <div>
+            <div className="flex items-center gap-3">
+                 {/* Customer Tracking Button */}
+                 {order.trackingUrl && (
+                    <Link href={order.trackingUrl} target="_blank">
+                        <button className="flex items-center gap-1 text-xs font-medium text-indigo-600 hover:text-indigo-800 transition">
+                            <ExternalLink size={14} /> Track Package
+                        </button>
+                    </Link>
+                 )}
+
                  <Badge className={`
                     ${order.status === 'Delivered' ? 'bg-green-100 text-green-700 hover:bg-green-100' : ''}
+                    ${order.status === 'Shipped' ? 'bg-purple-100 text-purple-700 hover:bg-purple-100' : ''}
                     ${order.status === 'Pending' ? 'bg-yellow-100 text-yellow-700 hover:bg-yellow-100' : ''}
                     ${order.status === 'Cancelled' ? 'bg-red-100 text-red-700 hover:bg-red-100' : ''}
                  `}>

@@ -12,7 +12,8 @@ const OrderSchema = new mongoose.Schema({
       name: { type: String, required: true },
       price: { type: Number, required: true },
       image: { type: String },
-      quantity: { type: Number, required: true }
+      quantity: { type: Number, required: true },
+      sku: { type: String } 
     }
   ],
   shippingAddress: {
@@ -20,15 +21,26 @@ const OrderSchema = new mongoose.Schema({
      city: String,
      state: String,
      zip: String,
-     country: String
+     country: String,
+     phone: String 
   },
   totalAmount: { type: Number, required: true },
   status: { 
     type: String, 
-    enum: ['Pending', 'Processing', 'Shipped', 'Delivered', 'Cancelled'],
+    // FIX: Added 'Ready to Ship' and 'RTO' to the allowed values
+    enum: ['Pending', 'Processing', 'Ready to Ship', 'Shipped', 'Delivered', 'Cancelled', 'RTO'],
     default: 'Pending' 
   },
-  paymentMethod: { type: String, default: 'COD' }
+  paymentMethod: { type: String, default: 'COD' },
+  paymentStatus: { type: String, enum: ['Pending', 'Paid', 'Failed'], default: 'Pending' },
+  
+  // --- Logistics Fields (Shiprocket) ---
+  shiprocketOrderId: { type: String },
+  shipmentId: { type: String },
+  awbCode: { type: String },
+  courierName: { type: String },
+  trackingUrl: { type: String },
+  
 }, { timestamps: true });
 
 export default mongoose.models.Order || mongoose.model('Order', OrderSchema);

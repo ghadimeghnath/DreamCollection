@@ -9,17 +9,22 @@ export const createOrder = async (userId, orderData) => {
   await dbConnect();
 
   try {
-    // 1. Fetch the user's persistent cart
+    // 1. Validation: Ensure Shipping Address is present
+    const addr = orderData.shippingAddress;
+    if (!addr || !addr.street || !addr.city || !addr.zip || !addr.state || !addr.country) {
+        return { error: "Please provide a complete shipping address before placing order." };
+    }
+
+    // 2. Fetch the user's persistent cart
     const cart = await Cart.findOne({ userId });
 
     if (!cart || cart.items.length === 0) {
       return { error: "Cart is empty" };
     }
 
-    // 2. Construct the Order Object
-    // FIX: Map cart items to match Order Schema ( _id -> productId )
+    // 3. Construct the Order Object
     const orderItems = cart.items.map(item => ({
-      productId: item._id, // This mapping is crucial
+      productId: item._id, // Map _id to productId
       name: item.name,
       price: item.price,
       image: item.image,
@@ -35,14 +40,13 @@ export const createOrder = async (userId, orderData) => {
       status: 'Pending'
     });
 
-    // 3. Clear the User's Cart
+    // 4. Clear the User's Cart
     await Cart.findOneAndUpdate({ userId }, { 
       items: [], 
       totalQuantity: 0, 
       totalPrice: 0 
     });
 
-    // 4. Revalidate paths
     revalidatePath('/profile');
     revalidatePath('/cart');
 
