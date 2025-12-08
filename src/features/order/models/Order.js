@@ -27,19 +27,11 @@ const OrderSchema = new mongoose.Schema({
   totalAmount: { type: Number, required: true },
   status: { 
     type: String, 
-    // FIX: Added 'Ready to Ship' and 'RTO' to the allowed values
-    enum: ['Pending', 'Processing', 'Ready to Ship', 'Shipped', 'Delivered', 'Cancelled', 'RTO'],
+    enum: ['Pending', 'Processing', 'Shipped', 'Delivered', 'Cancelled'],
     default: 'Pending' 
   },
   paymentMethod: { type: String, default: 'COD' },
   paymentStatus: { type: String, enum: ['Pending', 'Paid', 'Failed'], default: 'Pending' },
-  
-  // --- Logistics Fields (Shiprocket) ---
-  shiprocketOrderId: { type: String },
-  shipmentId: { type: String },
-  awbCode: { type: String },
-  courierName: { type: String },
-  trackingUrl: { type: String },
   
 }, { timestamps: true });
 

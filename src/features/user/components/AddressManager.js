@@ -3,12 +3,15 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Trash2, MapPin, Plus, Pencil } from "lucide-react";
+import { Trash2, MapPin, Plus, Pencil, Loader2 } from "lucide-react";
 import { addAddress, deleteAddress, updateAddress } from "../actions";
+import { useToast } from "@/context/ToastContext";
 
 export default function AddressManager({ addresses, userId }) {
+  const { addToast } = useToast();
   const [isAdding, setIsAdding] = useState(false);
   const [editingId, setEditingId] = useState(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({
     street: "", city: "", state: "", zip: "", country: "USA"
   });
@@ -17,6 +20,7 @@ export default function AddressManager({ addresses, userId }) {
     setIsAdding(false);
     setEditingId(null);
     setFormData({ street: "", city: "", state: "", zip: "", country: "USA" });
+    setIsSubmitting(false);
   };
 
   const handleAddNew = () => {
@@ -39,6 +43,7 @@ export default function AddressManager({ addresses, userId }) {
 
   const handleSave = async (e) => {
     e.preventDefault();
+    setIsSubmitting(true);
     let res;
 
     if (editingId) {
@@ -48,16 +53,32 @@ export default function AddressManager({ addresses, userId }) {
     }
 
     if (res?.success) {
+      addToast(editingId ? "Address updated successfully" : "Address added successfully", "success");
       resetForm();
     } else {
-      alert(res.error || "Failed to save address");
+      addToast(res.error || "Failed to save address", "error");
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleDelete = async (id) => {
+    if(confirm("Are you sure you want to delete this address?")) {
+        const res = await deleteAddress(id);
+        if (res.success) {
+            addToast("Address deleted", "success");
+        } else {
+            addToast("Failed to delete address", "error");
+        }
     }
   };
 
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <h2 className="text-xl font-semibold">My Addresses</h2>
+        <div>
+            <h2 className="text-xl font-semibold">My Addresses</h2>
+            <p className="text-sm text-gray-500">Manage your shipping destinations.</p>
+        </div>
         {/* Only show Add button if limit not reached AND not currently editing/adding */}
         {addresses.length < 2 && !isAdding && (
           <Button onClick={handleAddNew} size="sm" variant="outline" className="gap-2">
@@ -103,8 +124,11 @@ export default function AddressManager({ addresses, userId }) {
                 required 
             />
             <div className="md:col-span-2 flex gap-2 justify-end mt-2">
-                <Button type="button" variant="ghost" onClick={resetForm}>Cancel</Button>
-                <Button type="submit">{editingId ? "Update" : "Save"} Address</Button>
+                <Button type="button" variant="ghost" onClick={resetForm} disabled={isSubmitting}>Cancel</Button>
+                <Button type="submit" disabled={isSubmitting}>
+                    {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    {editingId ? "Update" : "Save"} Address
+                </Button>
             </div>
         </form>
       )}
@@ -131,7 +155,7 @@ export default function AddressManager({ addresses, userId }) {
                     <Pencil size={16} />
                 </button>
                 <button 
-                    onClick={async () => await deleteAddress(addr._id)}
+                    onClick={() => handleDelete(addr._id)}
                     className="text-gray-400 hover:text-red-500 transition p-2 rounded-full hover:bg-gray-100"
                     title="Delete Address"
                 >

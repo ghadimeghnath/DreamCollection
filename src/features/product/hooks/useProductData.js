@@ -19,8 +19,19 @@ export const useProductData = () => {
         // 1. Call the Server Action directly
         const data = await getProducts();
         
-        // 2. Dispatch success action with data
-        dispatch(setProducts(data));
+        // FIX: Handle both Array (Legacy) and Object (Paginated) responses
+        let productList = [];
+        
+        if (Array.isArray(data)) {
+            // Old format: just an array
+            productList = data;
+        } else if (data && Array.isArray(data.products)) {
+            // New format: { products: [], pagination: {} }
+            productList = data.products;
+        }
+        
+        // 2. Dispatch success action with the extracted array
+        dispatch(setProducts(productList));
       } catch (err) {
         console.error("Failed to fetch products:", err);
         // 3. Dispatch error action

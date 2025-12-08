@@ -2,64 +2,277 @@
 
 import { useState } from "react";
 import { signIn } from "next-auth/react";
-import { useRouter, useSearchParams } from "next/navigation"; // Added useSearchParams
+import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button"; 
 import { Input } from "@/components/ui/input";
+import { registerUser, resendVerificationEmail } from "../actions";
+import { useToast } from "@/context/ToastContext";
+import { Loader2, Mail, Lock, User, RefreshCw } from "lucide-react";
+import Link from "next/link";
 
 const LoginForm = () => {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const callbackUrl = searchParams.get("callbackUrl") || "/"; // Default to home if no callback
-  
-  const [error, setError] = useState("");
+  const callbackUrl = searchParams.get("callbackUrl") || "/";
+  const { addToast } = useToast();
+
+  const [isLogin, setIsLogin] = useState(true);
   const [loading, setLoading] = useState(false);
+  const [success, setSuccess] = useState(false);
+  const [unverifiedEmail, setUnverifiedEmail] = useState(null); // Track unverified user
+  
+  const [formData, setFormData] = useState({
+    name: "",
+    email: "",
+    password: ""
+  });
 
-  const handleSubmit = async (e) => {
+  const handleChange = (e) => {
+    setFormData({ ...formData, [e.target.name]: e.target.value });
+  };
+
+  const validateForm = () => {
+    if (!formData.email || !formData.email.includes("@")) {
+        addToast("Please enter a valid email address.", "warning");
+        return false;
+    }
+    if (!formData.password || formData.password.length < 6) {
+        addToast("Password must be at least 6 characters long.", "warning");
+        return false;
+    }
+    if (!isLogin && !formData.name) {
+        addToast("Please enter your full name.", "warning");
+        return false;
+    }
+    return true;
+  };
+
+  const handleForgotPassword = (e) => {
     e.preventDefault();
+    const cleanEmail = formData.email.trim().toLowerCase();
+    
+    if (!cleanEmail || !cleanEmail.includes("@")) {
+        addToast("Please enter your email address to reset password.", "warning");
+        return;
+    }
+    router.push(`/forgot-password?email=${encodeURIComponent(cleanEmail)}`);
+  };
+
+  const handleResend = async () => {
+    if (!unverifiedEmail) return;
     setLoading(true);
-    setError("");
-
-    const email = e.target[0].value;
-    const password = e.target[1].value;
-
-    const res = await signIn("credentials", {
-      email,
-      password,
-      redirect: false,
-    });
-
-    if (res?.error) {
-      setError("Invalid email or password");
-      setLoading(false);
+    const res = await resendVerificationEmail(unverifiedEmail);
+    setLoading(false);
+    if (res.success) {
+        addToast("Verification email sent!", "success");
+        setUnverifiedEmail(null); // Return to login view
     } else {
-      // Redirect to the original destination (e.g., /admin) or home
-      router.push(callbackUrl);
-      router.refresh();
+        addToast(res.error, "error");
     }
   };
 
-  return (
-    <div className="flex flex-col gap-4 w-full max-w-sm mx-auto p-6 border rounded-lg shadow-md bg-white">
-      <h1 className="text-2xl font-bold text-center">Login</h1>
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!validateForm()) return;
+
+    setLoading(true);
+    setUnverifiedEmail(null);
+    
+    const cleanData = {
+        ...formData,
+        email: formData.email.trim().toLowerCase()
+    };
+
+    if (isLogin) {
+      const res = await signIn("credentials", {
+        email: cleanData.email,
+        password: cleanData.password,
+        redirect: false,
+      });
+
+      if (res?.error) {
+        // FIX: Match exact error string from auth.config.js
+        if (res.error === "unverified") {
+            setUnverifiedEmail(cleanData.email);
+            addToast("Account not verified. Please check your email.", "warning");
+        } else {
+            addToast("Invalid email or password.", "error");
+        }
+        setLoading(false);
+      } else {
+        addToast("Welcome back!", "success");
+        router.push(callbackUrl);
+        router.refresh();
+      }
+    } else {
+      const res = await registerUser(cleanData);
       
-      <form onSubmit={handleSubmit} className="flex flex-col gap-3">
-        <Input type="email" placeholder="Email" required disabled={loading} />
-        <Input type="password" placeholder="Password" required disabled={loading} />
-        <Button type="submit" disabled={loading}>
-            {loading ? "Signing in..." : "Sign In with Email"}
+      if (res.error) {
+        addToast(res.error, "error");
+        setLoading(false);
+      } else {
+        setSuccess(true);
+        setLoading(false);
+      }
+    }
+  };
+
+  // --- Success State (Registration) ---
+  if (success) {
+    return (
+        <div className="bg-white py-10 px-6 shadow-xl sm:rounded-xl sm:px-10 border border-gray-100 text-center animate-in fade-in zoom-in-95">
+            <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-green-100 mb-6">
+                <Mail className="h-8 w-8 text-green-600" />
+            </div>
+            <h3 className="text-2xl font-bold text-gray-900 mb-2">Check your email</h3>
+            <p className="text-gray-500 mb-8">
+                We've sent a verification link to <span className="font-medium text-gray-900">{formData.email}</span>. Please click the link to activate your account.
+            </p>
+            <Button onClick={() => setIsLogin(true) || setSuccess(false)} variant="outline" className="w-full">
+                Back to Login
+            </Button>
+        </div>
+    );
+  }
+
+  // --- Unverified State (Login blocked) ---
+  if (unverifiedEmail) {
+    return (
+        <div className="bg-white py-10 px-6 shadow-xl sm:rounded-xl sm:px-10 border border-gray-100 text-center animate-in fade-in zoom-in-95">
+            <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-amber-100 mb-6">
+                <Mail className="h-8 w-8 text-amber-600" />
+            </div>
+            <h3 className="text-xl font-bold text-gray-900 mb-2">Verification Required</h3>
+            <p className="text-gray-500 mb-6 text-sm">
+                You need to verify <strong>{unverifiedEmail}</strong> before logging in.
+            </p>
+            <div className="space-y-3">
+                <Button onClick={handleResend} disabled={loading} className="w-full bg-indigo-600 hover:bg-indigo-700 text-white">
+                    {loading ? <Loader2 className="animate-spin mr-2" size={18} /> : <RefreshCw className="mr-2" size={18} />}
+                    Resend Email
+                </Button>
+                <Button onClick={() => setUnverifiedEmail(null)} variant="ghost" className="w-full">
+                    Use a different email
+                </Button>
+            </div>
+        </div>
+    );
+  }
+
+  return (
+    <div className="bg-white py-8 px-4 shadow-xl sm:rounded-xl sm:px-10 border border-gray-100">
+      <div className="mb-6">
+        <h3 className="text-xl font-bold text-gray-900">
+            {isLogin ? "Sign in to your account" : "Create your account"}
+        </h3>
+        <p className="text-sm text-gray-500 mt-1">
+            {isLogin ? "Enter your details to access your orders." : "Join us to start collecting today."}
+        </p>
+      </div>
+
+      <form className="space-y-5" onSubmit={handleSubmit}>
+        {!isLogin && (
+            <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">
+                    <User size={18} />
+                </div>
+                <Input 
+                    name="name"
+                    type="text" 
+                    placeholder="Full Name" 
+                    value={formData.name}
+                    onChange={handleChange}
+                    className="pl-10"
+                    disabled={loading} 
+                />
+            </div>
+        )}
+
+        <div className="relative">
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">
+                <Mail size={18} />
+            </div>
+            <Input 
+                name="email"
+                type="email" 
+                placeholder="Email Address" 
+                value={formData.email}
+                onChange={handleChange}
+                className="pl-10"
+                required 
+                disabled={loading} 
+            />
+        </div>
+
+        <div className="relative">
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">
+                <Lock size={18} />
+            </div>
+            <Input 
+                name="password"
+                type="password" 
+                placeholder="Password" 
+                value={formData.password}
+                onChange={handleChange}
+                className="pl-10"
+                required 
+                disabled={loading} 
+            />
+            {isLogin && (
+                <div className="text-right mt-1">
+                    <button 
+                        type="button"
+                        onClick={handleForgotPassword}
+                        className="text-xs font-medium text-indigo-600 hover:text-indigo-500 hover:underline cursor-pointer"
+                    >
+                        Forgot password?
+                    </button>
+                </div>
+            )}
+        </div>
+
+        <Button type="submit" disabled={loading} className="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-5">
+            {loading ? <Loader2 className="animate-spin mr-2" size={18} /> : null}
+            {isLogin ? "Sign In" : "Create Account"}
         </Button>
       </form>
 
-      {error && <p className="text-red-500 text-sm text-center">{error}</p>}
+      <div className="mt-6">
+        <div className="relative">
+          <div className="absolute inset-0 flex items-center">
+            <div className="w-full border-t border-gray-200" />
+          </div>
+          <div className="relative flex justify-center text-sm">
+            <span className="bg-white px-2 text-gray-500">Or continue with</span>
+          </div>
+        </div>
 
-      <div className="relative my-2">
-        <div className="absolute inset-0 flex items-center"><span className="w-full border-t"></span></div>
-        <div className="relative flex justify-center text-xs uppercase"><span className="bg-white px-2 text-muted-foreground">Or continue with</span></div>
+        <div className="mt-6">
+          <Button 
+            variant="outline" 
+            onClick={() => signIn("google", { callbackUrl })} 
+            disabled={loading}
+            className="w-full flex items-center justify-center gap-3 py-5 border-gray-300 hover:bg-gray-50"
+          >
+            <svg className="h-5 w-5" aria-hidden="true" viewBox="0 0 24 24">
+                <path d="M12.0003 20.45c-4.6667 0-8.45-3.7833-8.45-8.45 0-4.6667 3.7833-8.45 8.45-8.45 2.1 0 4.1.8 5.6 2.25l-2.4 2.4c-.85-.85-1.95-1.35-3.2-1.35-2.6 0-4.75 2.15-4.75 4.75s2.15 4.75 4.75 4.75c2.3 0 4.2-1.55 4.6-3.7H12v-3.3h8.05c.1.55.15 1.1.15 1.7 0 4.75-3.35 8.45-8.2 8.45z" fill="currentColor"/>
+            </svg>
+            <span className="font-medium text-gray-700">Google</span>
+          </Button>
+        </div>
       </div>
 
-      <Button variant="outline" onClick={() => signIn("google", { callbackUrl })} disabled={loading}>
-        Sign in with Google
-      </Button>
+      <div className="mt-6 text-center text-sm">
+        <p className="text-gray-600">
+            {isLogin ? "New to Dream Collection?" : "Already have an account?"}
+            <button 
+                onClick={() => setIsLogin(!isLogin)} 
+                className="ml-1 font-semibold text-indigo-600 hover:text-indigo-500 transition-colors"
+            >
+                {isLogin ? "Create an account" : "Sign in"}
+            </button>
+        </p>
+      </div>
     </div>
   );
 };

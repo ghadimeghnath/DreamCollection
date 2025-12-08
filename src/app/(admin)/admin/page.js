@@ -1,26 +1,39 @@
 import React from 'react';
-import { getProducts } from '@/features/product/actions';
-import AdminProductTable from '@/features/admin/components/AdminProductTable';
+import { getDashboardStats } from '@/features/admin/actions';
+import { getVisitorStats } from '@/features/analytics/actions';
+import AdminAnalytics from '@/features/admin/components/AdminAnalytics';
+import VisitorAnalytics from '@/features/admin/components/VisitorAnalytics';
 
 export const metadata = {
   title: "Admin Dashboard | Dream Collection",
 };
 
 export default async function AdminDashboard() {
-  // Reuse the existing fetch action
-  const products = await getProducts();
+  // Parallel data fetching
+  const [stats, visitorStats] = await Promise.all([
+    getDashboardStats(),
+    getVisitorStats()
+  ]);
 
   return (
-    <div className='p-6 max-w-7xl mx-auto'>
-      <div className="flex justify-between items-center mb-6">
-         <h1 className="text-2xl font-bold text-gray-800">All Products</h1>
-         <span className="bg-indigo-100 text-indigo-700 px-3 py-1 rounded-full text-sm font-medium">
-            {products.length} Items
-         </span>
+    // Added 'pb-24' for mobile nav clearance and responsive padding
+    <div className='p-4 md:p-6 max-w-7xl mx-auto pb-24 md:pb-8'>
+      <div className="flex flex-col mb-6 md:mb-8">
+         <h1 className="text-xl md:text-2xl font-bold text-gray-800">Dashboard</h1>
+         <p className="text-xs md:text-sm text-gray-500">Overview of your store performance</p>
       </div>
       
-      {/* Extract Client Logic to separate component */}
-      <AdminProductTable initialProducts={products} />
+      <div className="space-y-6">
+        {/* 1. Store KPI Cards */}
+        <section>
+           <AdminAnalytics stats={stats} />
+        </section>
+
+        {/* 2. Visitor Analytics Charts */}
+        <section>
+           <VisitorAnalytics stats={visitorStats} />
+        </section>
+      </div>
     </div>
   );
 }

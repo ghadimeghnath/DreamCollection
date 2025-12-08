@@ -1,36 +1,133 @@
 "use server";
 
-import { connectToDB } from "@/src/lib/db"; // Assuming you have a DB connection helper
+import dbConnect from "@/lib/db";
 import { User } from "./models/User";
 import bcrypt from "bcryptjs";
+import crypto from "crypto";
+import { sendVerificationEmail, sendPasswordResetEmail } from "@/lib/mail";
 
+// --- Registration with Verification ---
 export const registerUser = async (formData) => {
   const { name, email, password } = formData;
 
   try {
-    await connectToDB();
-    
-    // Check if user exists
+    await dbConnect();
     const existingUser = await User.findOne({ email });
-    if (existingUser) {
-      return { error: "User already exists!" };
-    }
+    if (existingUser) return { error: "User already exists!" };
 
-    // Hash password
     const hashedPassword = await bcrypt.hash(password, 10);
+    
+    // Generate Verification Token
+    const verificationToken = crypto.randomBytes(32).toString("hex");
+    const verificationTokenExpire = Date.now() + 24 * 60 * 60 * 1000; // 24 hours
 
-    // Create user
-    const newUser = new User({
-      name,
-      email,
-      password: hashedPassword,
+    const newUser = new User({ 
+        name, 
+        email, 
+        password: hashedPassword,
+        isVerified: false,
+        verificationToken,
+        verificationTokenExpire
     });
 
     await newUser.save();
-    return { success: true };
+
+    // Send Email
+    await sendVerificationEmail(email, verificationToken);
+
+    return { success: true, message: "Confirmation email sent!" };
 
   } catch (err) {
-    console.log(err);
+    console.error("Registration Error:", err);
     return { error: "Something went wrong!" };
+  }
+};
+
+// --- Resend Verification (NEW) ---
+export const resendVerificationEmail = async (email) => {
+  try {
+    await dbConnect();
+    const user = await User.findOne({ email });
+
+    if (!user) return { error: "User not found." };
+    if (user.isVerified) return { error: "Email is already verified. Please login." };
+
+    // Generate New Token
+    const verificationToken = crypto.randomBytes(32).toString("hex");
+    user.verificationToken = verificationToken;
+    user.verificationTokenExpire = Date.now() + 24 * 60 * 60 * 1000;
+    
+    await user.save();
+    await sendVerificationEmail(email, verificationToken);
+
+    return { success: true, message: "Verification email resent!" };
+  } catch (err) {
+    console.error("Resend Error:", err);
+    return { error: "Failed to resend email." };
+  }
+};
+
+// --- Verify Email Action ---
+export const verifyEmail = async (token) => {
+    await dbConnect();
+    const user = await User.findOne({
+        verificationToken: token,
+        verificationTokenExpire: { $gt: Date.now() }
+    });
+
+    if (!user) {
+        return { error: "Invalid or expired token" };
+    }
+
+    user.isVerified = true;
+    user.verificationToken = undefined;
+    user.verificationTokenExpire = undefined;
+    await user.save();
+
+    return { success: true, message: "Email verified successfully!" };
+};
+
+// --- Password Reset Request ---
+export const requestPasswordReset = async (email) => {
+  await dbConnect();
+  try {
+    const user = await User.findOne({ email, provider: "credentials" });
+    if (!user) return { success: true, message: "If an account exists, a reset link has been sent." };
+
+    const resetToken = crypto.randomBytes(20).toString("hex");
+    const resetTokenHash = crypto.createHash("sha256").update(resetToken).digest("hex");
+
+    user.resetPasswordToken = resetTokenHash;
+    user.resetPasswordExpire = Date.now() + 10 * 60 * 1000;
+    await user.save();
+
+    await sendPasswordResetEmail(user.email, resetToken);
+    return { success: true, message: "Reset link sent to your email!" };
+
+  } catch (error) {
+    return { error: "Failed to process request" };
+  }
+};
+
+// --- Process Password Reset ---
+export const resetPassword = async (token, newPassword) => {
+  await dbConnect();
+  try {
+    const resetTokenHash = crypto.createHash("sha256").update(token).digest("hex");
+    const user = await User.findOne({
+      resetPasswordToken: resetTokenHash,
+      resetPasswordExpire: { $gt: Date.now() },
+    });
+
+    if (!user) return { error: "Invalid or expired token" };
+
+    user.password = await bcrypt.hash(newPassword, 10);
+    user.resetPasswordToken = undefined;
+    user.resetPasswordExpire = undefined;
+    await user.save();
+    return { success: true };
+
+  } catch (error) {
+    return { error: "Failed to reset password" };
   }
 };

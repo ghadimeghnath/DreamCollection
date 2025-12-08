@@ -4,10 +4,13 @@ import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { Upload, X, Loader2, Save, ArrowLeft } from "lucide-react";
 import { addProduct, updateProduct, uploadImage } from "@/features/admin/actions";
+import { useToast } from "@/context/ToastContext"; // Import hook
 import Link from "next/link";
 
 export default function ProductForm({ initialData = null, isEditMode = false }) {
     const router = useRouter();
+    // FIX: Destructure removeToast from the hook
+    const { addToast, removeToast } = useToast(); 
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [uploadingImg, setUploadingImg] = useState(false);
     
@@ -42,20 +45,29 @@ export default function ProductForm({ initialData = null, isEditMode = false }) 
         if (!file) return;
 
         setUploadingImg(true);
+        // Start loading toast and capture ID
+        const loadId = addToast("Uploading image...", "loading"); 
+        
         const data = new FormData();
         data.append('file', file);
 
         const res = await uploadImage(data);
+        
+        // FIX: Remove the specific loading toast using its ID
+        removeToast(loadId); 
+        
         if (res.success) {
             setImages(prev => [...prev, res.url]);
+            addToast("Image uploaded successfully", "success");
         } else {
-            alert("Upload failed");
+            addToast("Image upload failed", "error");
         }
         setUploadingImg(false);
     };
 
     const removeImage = (indexToRemove) => {
         setImages(prev => prev.filter((_, i) => i !== indexToRemove));
+        addToast("Image removed", "info");
     };
 
     const handleSubmit = async (e) => {
@@ -63,7 +75,7 @@ export default function ProductForm({ initialData = null, isEditMode = false }) 
         setIsSubmitting(true);
 
         if (images.length === 0) {
-            alert("Please upload at least one image");
+            addToast("Please upload at least one image", "warning");
             setIsSubmitting(false);
             return;
         }
@@ -84,9 +96,10 @@ export default function ProductForm({ initialData = null, isEditMode = false }) 
         }
 
         if (res.success) {
+            addToast(isEditMode ? "Product updated successfully!" : "Product created successfully!", "success");
             router.push('/admin');
         } else {
-            alert(res.error);
+            addToast(res.error || "Something went wrong", "error");
         }
         setIsSubmitting(false);
     };
@@ -95,7 +108,7 @@ export default function ProductForm({ initialData = null, isEditMode = false }) 
         <motion.div 
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            className="max-w-8xl mx-auto md:pb-0" // Added bottom padding for mobile nav
+            className="max-w-5xl mx-auto px-4 pb-20 md:pb-0" 
         >
             {/* Header - Stacks on mobile */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 pt-4">
@@ -124,7 +137,7 @@ export default function ProductForm({ initialData = null, isEditMode = false }) 
                 <div className="lg:col-span-2 space-y-6">
                     
                     {/* Basic Details Card */}
-                    <div className="bg-white p-4 rounded-md border border-gray-200 shadow-sm">
+                    <div className="bg-white p-4 md:p-6 rounded-md border border-gray-200 shadow-sm">
                         <h3 className="font-semibold text-gray-900 mb-4 border-b pb-2">Basic Information</h3>
                         <div className="space-y-4">
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

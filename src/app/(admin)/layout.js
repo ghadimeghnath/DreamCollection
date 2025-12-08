@@ -1,5 +1,5 @@
 import { Geist, Geist_Mono } from "next/font/google";
-import "../globals.css";
+import "../../app/globals.css";
 import AdminNavbar from "@/features/admin/components/AdminNavbar";
 import AdminSidebar from "@/features/admin/components/AdminSidebar";
 import { getServerSession } from "next-auth";
@@ -22,10 +22,21 @@ export const metadata = {
 };
 
 export default async function AdminLayout({ children }) {
+  // 1. Validate Session on the Server
   const session = await getServerSession(authOptions);
-    if (!session || session.user.role !== "admin") {
-    redirect("/"); // Redirect to home or login
+
+  // 2. Strict Redirection Logic
+  if (!session) {
+    // If no session exists, force login with a callback to the dashboard
+    redirect("/login?callbackUrl=/admin");
   }
+
+  if (session.user.role !== "admin") {
+    // If logged in but not admin, kick to homepage
+    redirect("/"); 
+  }
+
+  // 3. Render Admin UI only if Authorized
   return (
     <div className={`${geistSans.variable} ${geistMono.variable} antialiased min-h-screen flex flex-col bg-gray-50/30`}>
         {/* Navbar stays at the top */}

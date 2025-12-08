@@ -2,70 +2,111 @@
 import React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, PlusCircle, ShoppingBag } from "lucide-react";
+import { LayoutDashboard, PlusCircle, ShoppingBag, Package, Settings, BarChart3, List } from "lucide-react";
 
-function AdminSidebar() {
+export default function AdminSidebar() {
   const pathname = usePathname();
 
-  const sidebarLinks = [
-    { name: "Dashboard", path: "/admin", icon: <LayoutDashboard size={22} /> },
-    { name: "Add Product", path: "/admin/add", icon: <PlusCircle size={22} /> },
-    { name: "Orders", path: "/admin/orders", icon: <ShoppingBag size={22} /> },
+  const menuGroups = [
+    {
+      label: "Overview",
+      items: [
+        { 
+          name: "Dashboard", 
+          path: "/admin", 
+          icon: <LayoutDashboard size={20} />,
+          // Only active strictly on /admin
+          isActive: (path) => path === "/admin" 
+        },
+      ]
+    },
+    {
+      label: "Management",
+      items: [
+        { 
+          name: "Products", 
+          path: "/admin/products", 
+          icon: <Package size={20} />,
+          // Active for product list or edit pages
+          isActive: (path) => path.startsWith("/admin/products") || path.startsWith("/admin/edit")
+        },
+        { 
+          name: "Orders", 
+          path: "/admin/orders", 
+          icon: <ShoppingBag size={20} />,
+          isActive: (path) => path.startsWith("/admin/orders")
+        },
+        { 
+          name: "Add Product", 
+          path: "/admin/add", 
+          icon: <PlusCircle size={20} />,
+          isActive: (path) => path === "/admin/add"
+        },
+      ]
+    },
   ];
+
+  const checkActive = (item) => item.isActive ? item.isActive(pathname) : pathname === item.path;
 
   return (
     <>
-      {/* Spacer to prevent content from being hidden behind the fixed bottom bar on mobile */}
       <div className="md:hidden h-16 w-full shrink-0" />
 
-      <div className='
+      <aside className='
         z-50
-        /* Mobile: Fixed Bottom Bar */
-        fixed bottom-0 left-0 w-full h-16 bg-white border-t border-gray-200 flex flex-row justify-between items-center shadow-[0_-2px_10px_rgba(0,0,0,0.05)]
-        
-        /* Desktop: Sticky Sidebar */
-        md:relative md:w-64 md:h-[calc(100vh-60px)] md:border-r md:border-t-0 md:flex-col md:justify-start md:py-6 md:shadow-none
-      '>
-        {sidebarLinks.map((item, index) => {
-          const isActive = pathname === item.path;
-          return (
-            <Link
-              href={item.path}
-              key={index}
-              className={`
-                group flex items-center transition-all duration-200
-                
-                /* Mobile: Vertical stack, equal width, centered */
-                flex-1 flex-col justify-center h-full gap-1
-                
-                /* Desktop: Horizontal row, padding */
-                md:flex-none md:flex-row md:justify-start md:px-6 md:py-3.5 md:gap-3 md:h-auto w-full
+        fixed bottom-0 left-0 w-full h-16 bg-white border-t border-gray-200 flex flex-row justify-around items-center px-2
+        md:relative md:w-64 md:h-[calc(100vh-60px)] md:border-r md:border-t-0 md:flex-col md:justify-start md:px-4 md:py-6 md:gap-6 md:shadow-none
+      '
+      aria-label="Admin Navigation"
+      >
+        {menuGroups.map((group, groupIndex) => (
+          <div key={groupIndex} className="contents md:block w-full">
+            <h3 className="hidden md:block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2 px-3">
+              {group.label}
+            </h3>
 
-                ${isActive 
-                  ? "text-indigo-600 bg-indigo-50/50 md:bg-indigo-50 md:border-r-4 md:border-indigo-600" 
-                  : "text-gray-500 hover:text-gray-900 hover:bg-gray-50"
-                }
-              `}
-            >
-              {/* Active Indicator for Mobile (Top Border) */}
-              {isActive && <div className="absolute top-0 w-12 h-1 bg-indigo-600 rounded-b-md md:hidden" />}
+            <nav className="contents md:flex md:flex-col md:gap-1">
+              {group.items.map((item, itemIndex) => {
+                const isActive = checkActive(item);
+                
+                return (
+                  <Link
+                    href={item.path}
+                    key={itemIndex}
+                    className={`
+                      group relative flex items-center transition-all duration-200 outline-none rounded-lg
+                      flex-1 flex-col justify-center h-full py-1
+                      md:flex-none md:flex-row md:justify-start md:px-3 md:py-2.5 md:h-auto
+                      focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-1
+                      ${isActive 
+                        ? "text-indigo-600 bg-indigo-50" 
+                        : "text-gray-500 hover:text-gray-900 hover:bg-gray-50"
+                      }
+                    `}
+                    aria-current={isActive ? "page" : undefined}
+                  >
+                    {isActive && (
+                      <span className="absolute top-0 w-8 h-0.5 bg-indigo-600 rounded-full md:hidden" />
+                    )}
 
-              <div className={`transition-transform duration-200 ${isActive ? 'scale-110 md:scale-100' : ''}`}>
-                {item.icon}
-              </div>
-              
-              <span className={`
-                text-[10px] font-medium
-                md:text-sm md:inline-block
-              `}>
-                {item.name}
-              </span>
-            </Link>
-          );
-        })}
-      </div>
+                    <span className={`transition-colors ${isActive ? 'text-indigo-600' : 'text-gray-500 group-hover:text-gray-700'}`}>
+                      {item.icon}
+                    </span>
+                    
+                    <span className={`
+                      text-[10px] font-medium mt-1
+                      md:text-sm md:mt-0 md:ml-3
+                      ${isActive ? 'font-semibold' : ''}
+                    `}>
+                      {item.name}
+                    </span>
+                  </Link>
+                );
+              })}
+            </nav>
+          </div>
+        ))}
+      </aside>
     </>
   );
 }
-
-export default AdminSidebar;

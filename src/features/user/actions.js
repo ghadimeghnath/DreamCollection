@@ -3,8 +3,32 @@
 import dbConnect from '@/lib/db';
 import Address from './models/Address';
 import Order from '@/features/order/models/Order';
+import { User } from '@/features/auth/models/User'; // Import User model
 import { revalidatePath } from 'next/cache';
 import mongoose from 'mongoose';
+
+// --- User Profile Actions ---
+
+export const updateUserProfile = async (userId, data) => {
+  await dbConnect();
+
+  if (!mongoose.Types.ObjectId.isValid(userId)) {
+    return { error: "Invalid User Session" };
+  }
+
+  try {
+    // Prevent updating email/password via this simple route for security
+    const { email, password, isAdmin, ...safeData } = data;
+    
+    await User.findByIdAndUpdate(userId, safeData);
+    
+    revalidatePath('/profile');
+    return { success: true };
+  } catch (error) {
+    console.error("Profile Update Error:", error);
+    return { error: "Failed to update profile." };
+  }
+};
 
 // --- Address Actions ---
 
@@ -12,7 +36,6 @@ export const getUserAddresses = async (userId) => {
   await dbConnect();
   
   if (!mongoose.Types.ObjectId.isValid(userId)) {
-    console.error("Invalid User ID in getUserAddresses:", userId);
     return [];
   }
 
@@ -30,7 +53,6 @@ export const getUserAddresses = async (userId) => {
 export const addAddress = async (userId, addressData) => {
   await dbConnect();
   
-  // FIX: Validate ID format to prevent App Crash
   if (!mongoose.Types.ObjectId.isValid(userId)) {
     return { error: "Session invalid. Please sign out and sign in again." };
   }

@@ -4,25 +4,69 @@ import dbConnect from '@/lib/db';
 import Product from '@/features/product/models/Product';
 import { revalidatePath } from 'next/cache';
 
-// Fetch all products
-export async function getProducts() {
+// Fetch products with Search, Filter & Pagination
+export async function getProducts({ query = '', category = '', page = 1, limit = 10 } = {}) {
   await dbConnect();
-  const products = await Product.find({}).sort({ createdAt: -1 }).lean();
+
+  try {
+    const skip = (page - 1) * limit;
+
+    // Build Query Object
+    const filter = {};
+    
+    // Search by Name or Description (Case Insensitive)
+    if (query) {
+      filter.$or = [
+        { name: { $regex: query, $options: 'i' } },
+        { description: { $regex: query, $options: 'i' } }
+      ];
+    }
+
+    // Filter by Category
+    if (category && category !== 'All') {
+      filter.category = category;
+    }
+
+    // Parallel Fetch: Data + Count
+    const [products, totalItems] = await Promise.all([
+      Product.find(filter)
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit)
+        .lean(),
+      Product.countDocuments(filter)
+    ]);
+
+    const totalPages = Math.ceil(totalItems / limit);
   
-  return products.map(product => ({
-    ...product,
-    _id: product._id.toString(),
-    createdAt: product.createdAt?.toISOString() || new Date().toISOString(),
-    updatedAt: product.updatedAt?.toISOString() || new Date().toISOString(),
-  }));
+    const serializedProducts = products.map(product => ({
+      ...product,
+      _id: product._id.toString(),
+      createdAt: product.createdAt?.toISOString() || new Date().toISOString(),
+      updatedAt: product.updatedAt?.toISOString() || new Date().toISOString(),
+    }));
+
+    return {
+      products: serializedProducts,
+      pagination: {
+        currentPage: page,
+        totalPages,
+        totalItems,
+        limit
+      }
+    };
+
+  } catch (error) {
+    console.error("Fetch Products Error:", error);
+    // Return empty structure on error to prevent page crash
+    return { products: [], pagination: { currentPage: 1, totalPages: 1, totalItems: 0 } };
+  }
 }
 
-// Fetch products by Category
+// Fetch products by Category (Public View)
 export async function getProductsByCategory(category) {
   await dbConnect();
-  // Decode URL (e.g. "Muscle%20Cars" -> "Muscle Cars")
   const decodedCategory = decodeURIComponent(category);
-  
   const products = await Product.find({ category: decodedCategory }).sort({ createdAt: -1 }).lean();
   
   return products.map(product => ({
@@ -38,8 +82,6 @@ export const getProductBySlug = async (slug) => {
   try {
     await dbConnect();
     const decodedSlug = decodeURIComponent(slug);
-    
-    // Check both slug and name for backward compatibility
     const product = await Product.findOne({ 
       $or: [{ slug: decodedSlug }, { name: decodedSlug }] 
     }).lean();
@@ -58,7 +100,6 @@ export const getProductBySlug = async (slug) => {
   }
 };
 
-// Toggle Stock (Admin Function)
 export async function toggleStock(id, currentStatus) {
   await dbConnect();
   await Product.findByIdAndUpdate(id, { inStock: !currentStatus });

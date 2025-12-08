@@ -25,8 +25,12 @@ export const authOptions = {
            throw new Error("Invalid email or password");
         }
 
+        // Check verification status
+        if (!user.isVerified) {
+            throw new Error("unverified"); // Specific keyword for frontend handling
+        }
+
         const isMatch = await bcrypt.compare(credentials.password, user.password);
-        
         if (!isMatch) {
            throw new Error("Invalid email or password");
         }
@@ -47,15 +51,23 @@ export const authOptions = {
         try {
           await dbConnect();
           const existingUser = await User.findOne({ email: user.email });
-
+          
           if (!existingUser) {
+            // New Google user
             await User.create({
               name: user.name,
               email: user.email,
               image: user.image,
               provider: "google",
               isAdmin: false,
+              isVerified: true, // Google trusted
             });
+          } else if (!existingUser.isVerified) {
+            // Existing user attempting Google login -> Auto-verify them
+            existingUser.isVerified = true;
+            existingUser.provider = "google"; // Link to google
+            if (!existingUser.image) existingUser.image = user.image;
+            await existingUser.save();
           }
           return true;
         } catch (error) {
@@ -67,23 +79,20 @@ export const authOptions = {
     },
     
     async jwt({ token, user, account }) {
-        // 1. Initial Login (Credentials or Google)
         if (user) {
             token.id = user.id;
             token.role = user.role;
         }
-
-        // 2. Google Login Fix: Ensure we have the DB _id, not the Google sub ID
-        // We run this check if we have an account (sign in) OR if the current ID is not a Mongo ID
+        
+        // Ensure Google logins get role from DB
         const isMongoId = /^[0-9a-fA-F]{24}$/.test(token.id);
         
         if (!isMongoId || (account && account.provider === "google")) {
             await dbConnect();
             const dbUser = await User.findOne({ email: token.email });
             if (dbUser) {
-                token.id = dbUser._id.toString(); // CRITICAL: Swap to Mongo ID
+                token.id = dbUser._id.toString();
                 token.role = dbUser.isAdmin ? "admin" : "user";
-                // Update image if changed in DB
                 if (dbUser.image) token.picture = dbUser.image; 
             }
         }
