@@ -106,7 +106,7 @@ function Navbar() {
                 
 
                 {/* Hamburger */}
-                <button onClick={() => setOpen(!open)} aria-label="Menu">
+                <button onClick={(e) => {e.preventDefault; setOpen(!open)}} aria-label="Menu" className='cursor-pointer'>
                     <svg width="21" height="15" viewBox="0 0 21 15" fill="none" xmlns="http://www.w3.org/2000/svg">
                         <rect width="21" height="1.5" rx=".75" fill="#426287" />
                         <rect x="8" y="6" width="13" height="1.5" rx=".75" fill="#426287" />

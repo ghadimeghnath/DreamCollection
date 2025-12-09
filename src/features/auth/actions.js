@@ -6,7 +6,7 @@ import bcrypt from "bcryptjs";
 import crypto from "crypto";
 import { sendVerificationEmail, sendPasswordResetEmail } from "@/lib/mail";
 
-// --- Registration with Verification ---
+// --- Registration ---
 export const registerUser = async (formData) => {
   const { name, email, password } = formData;
 
@@ -17,9 +17,8 @@ export const registerUser = async (formData) => {
 
     const hashedPassword = await bcrypt.hash(password, 10);
     
-    // Generate Verification Token
     const verificationToken = crypto.randomBytes(32).toString("hex");
-    const verificationTokenExpire = Date.now() + 24 * 60 * 60 * 1000; // 24 hours
+    const verificationTokenExpire = Date.now() + 24 * 60 * 60 * 1000; 
 
     const newUser = new User({ 
         name, 
@@ -31,8 +30,6 @@ export const registerUser = async (formData) => {
     });
 
     await newUser.save();
-
-    // Send Email
     await sendVerificationEmail(email, verificationToken);
 
     return { success: true, message: "Confirmation email sent!" };
@@ -43,7 +40,7 @@ export const registerUser = async (formData) => {
   }
 };
 
-// --- Resend Verification (NEW) ---
+// --- Resend Verification Email ---
 export const resendVerificationEmail = async (email) => {
   try {
     await dbConnect();
@@ -52,7 +49,6 @@ export const resendVerificationEmail = async (email) => {
     if (!user) return { error: "User not found." };
     if (user.isVerified) return { error: "Email is already verified. Please login." };
 
-    // Generate New Token
     const verificationToken = crypto.randomBytes(32).toString("hex");
     user.verificationToken = verificationToken;
     user.verificationTokenExpire = Date.now() + 24 * 60 * 60 * 1000;
@@ -67,7 +63,7 @@ export const resendVerificationEmail = async (email) => {
   }
 };
 
-// --- Verify Email Action ---
+// --- Verify Email ---
 export const verifyEmail = async (token) => {
     await dbConnect();
     const user = await User.findOne({
@@ -75,9 +71,7 @@ export const verifyEmail = async (token) => {
         verificationTokenExpire: { $gt: Date.now() }
     });
 
-    if (!user) {
-        return { error: "Invalid or expired token" };
-    }
+    if (!user) return { error: "Invalid or expired token" };
 
     user.isVerified = true;
     user.verificationToken = undefined;
@@ -109,7 +103,7 @@ export const requestPasswordReset = async (email) => {
   }
 };
 
-// --- Process Password Reset ---
+// --- Reset Password ---
 export const resetPassword = async (token, newPassword) => {
   await dbConnect();
   try {

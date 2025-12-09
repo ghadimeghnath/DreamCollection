@@ -3,7 +3,7 @@
 import dbConnect from '@/lib/db';
 import Address from './models/Address';
 import Order from '@/features/order/models/Order';
-import { User } from '@/features/auth/models/User'; // Import User model
+import { User } from '@/features/auth/models/User';
 import { revalidatePath } from 'next/cache';
 import mongoose from 'mongoose';
 
@@ -36,6 +36,7 @@ export const getUserAddresses = async (userId) => {
   await dbConnect();
   
   if (!mongoose.Types.ObjectId.isValid(userId)) {
+    console.error("Invalid User ID in getUserAddresses:", userId);
     return [];
   }
 
@@ -53,6 +54,7 @@ export const getUserAddresses = async (userId) => {
 export const addAddress = async (userId, addressData) => {
   await dbConnect();
   
+  // FIX: Validate ID format to prevent App Crash
   if (!mongoose.Types.ObjectId.isValid(userId)) {
     return { error: "Session invalid. Please sign out and sign in again." };
   }

@@ -25,9 +25,10 @@ export const authOptions = {
            throw new Error("Invalid email or password");
         }
 
-        // Check verification status
+        // CRITICAL: Check verification status
+        // We throw a specific string "unverified" to catch it in the UI
         if (!user.isVerified) {
-            throw new Error("unverified"); // Specific keyword for frontend handling
+            throw new Error("unverified");
         }
 
         const isMatch = await bcrypt.compare(credentials.password, user.password);
@@ -53,20 +54,19 @@ export const authOptions = {
           const existingUser = await User.findOne({ email: user.email });
           
           if (!existingUser) {
-            // New Google user
+            // Create new Google user (Auto Verified)
             await User.create({
               name: user.name,
               email: user.email,
               image: user.image,
               provider: "google",
               isAdmin: false,
-              isVerified: true, // Google trusted
+              isVerified: true, 
             });
           } else if (!existingUser.isVerified) {
-            // Existing user attempting Google login -> Auto-verify them
+            // Existing unverified user logging in with Google -> Verify them now
             existingUser.isVerified = true;
-            existingUser.provider = "google"; // Link to google
-            if (!existingUser.image) existingUser.image = user.image;
+            existingUser.provider = "google"; 
             await existingUser.save();
           }
           return true;
@@ -84,19 +84,16 @@ export const authOptions = {
             token.role = user.role;
         }
         
-        // Ensure Google logins get role from DB
-        const isMongoId = /^[0-9a-fA-F]{24}$/.test(token.id);
-        
-        if (!isMongoId || (account && account.provider === "google")) {
+        // Sync with DB for Google Logins to get role/id
+        if (account?.provider === "google") {
             await dbConnect();
             const dbUser = await User.findOne({ email: token.email });
             if (dbUser) {
                 token.id = dbUser._id.toString();
                 token.role = dbUser.isAdmin ? "admin" : "user";
-                if (dbUser.image) token.picture = dbUser.image; 
+                token.picture = dbUser.image || token.picture;
             }
         }
-        
         return token;
     },
 

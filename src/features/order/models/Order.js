@@ -30,9 +30,13 @@ const OrderSchema = new mongoose.Schema({
     enum: ['Pending', 'Processing', 'Shipped', 'Delivered', 'Cancelled'],
     default: 'Pending' 
   },
-  paymentMethod: { type: String, default: 'COD' },
+  // Updated payment method enum
+  paymentMethod: { type: String, default: 'COD' }, // 'COD', 'WhatsApp'
   paymentStatus: { type: String, enum: ['Pending', 'Paid', 'Failed'], default: 'Pending' },
   
+  // New field for manual payment verification
+  upiReference: { type: String }, 
+
 }, { timestamps: true });
 
 export default mongoose.models.Order || mongoose.model('Order', OrderSchema);

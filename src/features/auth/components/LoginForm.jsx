@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { registerUser, resendVerificationEmail } from "../actions";
 import { useToast } from "@/context/ToastContext";
 import { Loader2, Mail, Lock, User, RefreshCw } from "lucide-react";
-import Link from "next/link";
+import Link from "next/link"; 
 
 const LoginForm = () => {
   const router = useRouter();
@@ -19,7 +19,7 @@ const LoginForm = () => {
   const [isLogin, setIsLogin] = useState(true);
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
-  const [unverifiedEmail, setUnverifiedEmail] = useState(null); // Track unverified user
+  const [unverifiedEmail, setUnverifiedEmail] = useState(null);
   
   const [formData, setFormData] = useState({
     name: "",
@@ -31,33 +31,6 @@ const LoginForm = () => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  const validateForm = () => {
-    if (!formData.email || !formData.email.includes("@")) {
-        addToast("Please enter a valid email address.", "warning");
-        return false;
-    }
-    if (!formData.password || formData.password.length < 6) {
-        addToast("Password must be at least 6 characters long.", "warning");
-        return false;
-    }
-    if (!isLogin && !formData.name) {
-        addToast("Please enter your full name.", "warning");
-        return false;
-    }
-    return true;
-  };
-
-  const handleForgotPassword = (e) => {
-    e.preventDefault();
-    const cleanEmail = formData.email.trim().toLowerCase();
-    
-    if (!cleanEmail || !cleanEmail.includes("@")) {
-        addToast("Please enter your email address to reset password.", "warning");
-        return;
-    }
-    router.push(`/forgot-password?email=${encodeURIComponent(cleanEmail)}`);
-  };
-
   const handleResend = async () => {
     if (!unverifiedEmail) return;
     setLoading(true);
@@ -65,16 +38,23 @@ const LoginForm = () => {
     setLoading(false);
     if (res.success) {
         addToast("Verification email sent!", "success");
-        setUnverifiedEmail(null); // Return to login view
+        setUnverifiedEmail(null); 
     } else {
         addToast(res.error, "error");
     }
   };
 
+  const handleForgotPassword = () => {
+    const cleanEmail = formData.email.trim().toLowerCase();
+    if (!cleanEmail || !cleanEmail.includes("@")) {
+        addToast("Please enter your email to reset password.", "warning");
+        return;
+    }
+    router.push(`/forgot-password?email=${encodeURIComponent(cleanEmail)}`);
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!validateForm()) return;
-
     setLoading(true);
     setUnverifiedEmail(null);
     
@@ -91,7 +71,6 @@ const LoginForm = () => {
       });
 
       if (res?.error) {
-        // FIX: Match exact error string from auth.config.js
         if (res.error === "unverified") {
             setUnverifiedEmail(cleanData.email);
             addToast("Account not verified. Please check your email.", "warning");
@@ -117,16 +96,15 @@ const LoginForm = () => {
     }
   };
 
-  // --- Success State (Registration) ---
   if (success) {
     return (
-        <div className="bg-white py-10 px-6 shadow-xl sm:rounded-xl sm:px-10 border border-gray-100 text-center animate-in fade-in zoom-in-95">
+        <div className="bg-white py-10 px-6 shadow-xl sm:rounded-xl sm:px-10 border border-gray-100 text-center">
             <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-green-100 mb-6">
                 <Mail className="h-8 w-8 text-green-600" />
             </div>
             <h3 className="text-2xl font-bold text-gray-900 mb-2">Check your email</h3>
             <p className="text-gray-500 mb-8">
-                We've sent a verification link to <span className="font-medium text-gray-900">{formData.email}</span>. Please click the link to activate your account.
+                Verification link sent to <span className="font-medium text-gray-900">{formData.email}</span>.
             </p>
             <Button onClick={() => setIsLogin(true) || setSuccess(false)} variant="outline" className="w-full">
                 Back to Login
@@ -135,16 +113,15 @@ const LoginForm = () => {
     );
   }
 
-  // --- Unverified State (Login blocked) ---
   if (unverifiedEmail) {
     return (
-        <div className="bg-white py-10 px-6 shadow-xl sm:rounded-xl sm:px-10 border border-gray-100 text-center animate-in fade-in zoom-in-95">
+        <div className="bg-white py-10 px-6 shadow-xl sm:rounded-xl sm:px-10 border border-gray-100 text-center">
             <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-amber-100 mb-6">
                 <Mail className="h-8 w-8 text-amber-600" />
             </div>
             <h3 className="text-xl font-bold text-gray-900 mb-2">Verification Required</h3>
             <p className="text-gray-500 mb-6 text-sm">
-                You need to verify <strong>{unverifiedEmail}</strong> before logging in.
+                Verify <strong>{unverifiedEmail}</strong> to continue.
             </p>
             <div className="space-y-3">
                 <Button onClick={handleResend} disabled={loading} className="w-full bg-indigo-600 hover:bg-indigo-700 text-white">
@@ -166,7 +143,7 @@ const LoginForm = () => {
             {isLogin ? "Sign in to your account" : "Create your account"}
         </h3>
         <p className="text-sm text-gray-500 mt-1">
-            {isLogin ? "Enter your details to access your orders." : "Join us to start collecting today."}
+            {isLogin ? "Access your orders & wishlist." : "Join us to start collecting today."}
         </p>
       </div>
 
@@ -183,6 +160,7 @@ const LoginForm = () => {
                     value={formData.name}
                     onChange={handleChange}
                     className="pl-10"
+                    required
                     disabled={loading} 
                 />
             </div>

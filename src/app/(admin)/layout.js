@@ -5,16 +5,9 @@ import AdminSidebar from "@/features/admin/components/AdminSidebar";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth.config";
 import { redirect } from "next/navigation";
+import { ToastProvider } from "@/context/ToastContext"; 
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
+// ... font definitions ...
 
 export const metadata = {
   title: "Admin Dashboard | Dream Collection",
@@ -22,40 +15,34 @@ export const metadata = {
 };
 
 export default async function AdminLayout({ children }) {
-  // 1. Validate Session on the Server
   const session = await getServerSession(authOptions);
 
-  // 2. Strict Redirection Logic
   if (!session) {
-    // If no session exists, force login with a callback to the dashboard
     redirect("/login?callbackUrl=/admin");
   }
 
   if (session.user.role !== "admin") {
-    // If logged in but not admin, kick to homepage
     redirect("/"); 
   }
 
-  // 3. Render Admin UI only if Authorized
   return (
-    <div className={`${geistSans.variable} ${geistMono.variable} antialiased min-h-screen flex flex-col bg-gray-50/30`}>
-        {/* Navbar stays at the top */}
-        <AdminNavbar />
-        
-        {/* Responsive Layout Container:
-            - Mobile: flex-col-reverse (Puts Content on TOP, Sidebar/Spacer on BOTTOM)
-            - Desktop: flex-row (Puts Sidebar on LEFT, Content on RIGHT)
-        */}
-        <div className="flex flex-col-reverse md:flex-row flex-1 relative">
+    <div className={`antialiased min-h-screen flex flex-col bg-gray-50/30`}>
+        <ToastProvider>
+            {/* Navbar acts as the top control strip */}
+            <AdminNavbar />
             
-            {/* Sidebar Component */}
-            <AdminSidebar />
-            
-            {/* Main Content Area */}
-            <main className="flex-1 w-full p-4 md:p-8 overflow-x-hidden">
-                {children} 
-            </main>
-        </div>
+            {/* Flex container for Sidebar + Content */}
+            <div className="flex flex-col md:flex-row flex-1 relative">
+                <AdminSidebar />
+                
+                {/* Sidebar handles navigation (Left on Desktop, Bottom on Mobile) */}
+                
+                {/* Main Content Area */}
+                <main className="flex-1 w-full p-4 md:p-8 overflow-x-hidden pb-24 md:pb-8">
+                    {children} 
+                </main>
+            </div>
+        </ToastProvider>
     </div>
   );
 }

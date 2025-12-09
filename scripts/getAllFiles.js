@@ -45,8 +45,6 @@ function getAllFilesWithContent(dir, result = {}) {
 const projectFiles = getAllFilesWithContent(ROOT_DIR);
 
 console.log("📌 Files loaded:", Object.keys(projectFiles).length);
-// Display entire output (file paths + contents)
-console.log(projectFiles);
 
 // Optionally save to a JSON file:
 fs.writeFileSync(

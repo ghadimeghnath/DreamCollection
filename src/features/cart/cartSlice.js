@@ -11,6 +11,7 @@ const cartSlice = createSlice({
   name: 'cart',
   initialState,
   reducers: {
+    // Action to replace entire cart (used for DB fetch and Validation sync)
     setCart: (state, action) => {
       state.items = action.payload.items || [];
       state.totalQuantity = action.payload.totalQuantity || 0;
@@ -20,7 +21,6 @@ const cartSlice = createSlice({
 
     addToCart: (state, action) => {
       const newItem = action.payload;
-      // FIX: Check for both _id (DB standard) and id (Component standard)
       const itemId = newItem._id || newItem.id;
 
       if (!itemId) {
@@ -32,20 +32,22 @@ const cartSlice = createSlice({
 
       if (!existingItem) {
         state.items.push({
-          _id: itemId, // Standardize on _id internally
+          _id: itemId,
           name: newItem.name,
           price: newItem.price,
           image: newItem.image,
+          slug: newItem.slug,
+          series: newItem.series,
+          year: newItem.year,
           quantity: newItem.quantity || 1,
         });
       } else {
         existingItem.quantity += (newItem.quantity || 1);
       }
       
-      // Update totals
-      const qtyToAdd = newItem.quantity || 1;
-      state.totalQuantity += qtyToAdd;
-      state.totalPrice += newItem.price * qtyToAdd;
+      // Recalculate totals from scratch to avoid drift
+      state.totalQuantity = state.items.reduce((sum, item) => sum + item.quantity, 0);
+      state.totalPrice = state.items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
       state.isLoaded = true;
     },
 
@@ -54,29 +56,24 @@ const cartSlice = createSlice({
       const existingItem = state.items.find(item => item._id === id);
 
       if (existingItem) {
-        const itemPrice = existingItem.price; // Capture price before modification
-
         if (existingItem.quantity === 1) {
            state.items = state.items.filter(item => item._id !== id);
         } else {
            existingItem.quantity--;
         }
         
-        state.totalQuantity--;
-        state.totalPrice -= itemPrice;
+        state.totalQuantity = state.items.reduce((sum, item) => sum + item.quantity, 0);
+        state.totalPrice = state.items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
         state.isLoaded = true;
       }
     },
 
     removeFromCart: (state, action) => {
       const id = action.payload;
-      const existingItem = state.items.find(item => item._id === id);
-
-      if (existingItem) {
-        state.items = state.items.filter(item => item._id !== id);
-        state.totalQuantity -= existingItem.quantity;
-        state.totalPrice -= (existingItem.price * existingItem.quantity);
-      }
+      state.items = state.items.filter(item => item._id !== id);
+      
+      state.totalQuantity = state.items.reduce((sum, item) => sum + item.quantity, 0);
+      state.totalPrice = state.items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
       state.isLoaded = true;
     },
     

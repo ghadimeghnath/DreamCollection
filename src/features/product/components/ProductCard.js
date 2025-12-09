@@ -58,7 +58,7 @@ export default function ProductCard({ product }) {
                 <h3 className='font-medium text-neutral-900 text-sm md:text-base line-clamp-2'>
                 {product.name}
                 </h3>
-                <p className='text-xs text-neutral-500'>
+                <p className='text-xs text-neutral-500 truncate'>
                 {product.description} 
                 </p>
             </div>

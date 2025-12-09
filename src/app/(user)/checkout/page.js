@@ -15,12 +15,17 @@ export default async function CheckoutPage() {
     redirect("/login?callbackUrl=/checkout");
   }
 
-  // Fetch addresses so user can pick one
-  const addresses = await getUserAddresses(session.user.id);
+  // Fetch addresses safely. If it fails or returns null, pass empty array.
+  let addresses = [];
+  try {
+    addresses = await getUserAddresses(session.user.id);
+  } catch (error) {
+    console.error("Failed to fetch addresses for checkout", error);
+  }
 
   return (
     <div className="bg-gray-50 min-h-screen">
-        <Checkout userId={session.user.id} savedAddresses={addresses} />
+        <Checkout userId={session.user.id} savedAddresses={addresses || []} />
     </div>
   );
 }
