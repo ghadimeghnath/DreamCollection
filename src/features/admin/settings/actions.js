@@ -14,31 +14,49 @@ export const getStoreSettings = async () => {
     settings = await StoreSettings.findById(settings._id).lean();
   }
 
-  // Convert Map to Object for client-side usage if needed, or keeping it as POJO
-  // Mongoose maps in lean() return as standard objects usually, but let's be safe
-  const serializedSettings = {
+  // Ensure paymentGateways array exists
+  if (!settings.paymentGateways) settings.paymentGateways = [];
+
+  // SERIALIZATION FIX: Convert all ObjectIds and Dates to strings/numbers
+  const serializedSettings = JSON.parse(JSON.stringify({
     ...settings,
     _id: settings._id.toString(),
-    paymentConfigs: settings.paymentConfigs || {} 
-  };
+    paymentGateways: settings.paymentGateways.map(gw => ({
+        ...gw,
+        _id: gw._id ? gw._id.toString() : undefined // Handle nested _id if it exists
+    }))
+  }));
 
   return serializedSettings;
 };
 
-export const updatePaymentConfig = async (gatewayId, enabled, configData) => {
+export const updatePaymentGateway = async (gatewayId, enabled, configData) => {
   await dbConnect();
   try {
-    const updatePath = `paymentConfigs.${gatewayId}`;
+    const settings = await StoreSettings.findOne();
     
-    await StoreSettings.findOneAndUpdate({}, { 
-        [updatePath]: {
-            enabled,
-            config: configData
+    if (!settings) {
+        // Create initial if missing
+        await StoreSettings.create({
+            paymentGateways: [{ id: gatewayId, enabled, config: configData }]
+        });
+    } else {
+        // Find existing gateway index
+        const existingIndex = settings.paymentGateways.findIndex(g => g.id === gatewayId);
+        
+        if (existingIndex > -1) {
+            // Update existing
+            settings.paymentGateways[existingIndex].enabled = enabled;
+            settings.paymentGateways[existingIndex].config = configData;
+        } else {
+            // Add new
+            settings.paymentGateways.push({ id: gatewayId, enabled, config: configData });
         }
-    }, { upsert: true });
+        await settings.save();
+    }
     
-    revalidatePath('/'); // Refresh checkout & admin
-    return { success: true, message: `${gatewayId} settings updated` };
+    revalidatePath('/'); // Refresh app
+    return { success: true, message: `${gatewayId} updated successfully` };
   } catch (error) {
     console.error("Update Error:", error);
     return { error: "Failed to update settings" };

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { updatePaymentConfig } from "../../actions";
+import { updatePaymentGateway } from "../../actions";
 import { useToast } from "@/context/ToastContext";
 import { Loader2, Save, ChevronDown, ChevronUp } from "lucide-react";
 import { PAYMENT_GATEWAYS } from "@/features/admin/settings/modules/payments/paymentRegistry";
@@ -12,7 +12,7 @@ export default function PaymentSettings({ settings }) {
   return (
     <div className="space-y-6">
        {PAYMENT_GATEWAYS.map((gateway) => {
-         const currentConfig = settings?.paymentConfigs?.[gateway.id] || {};
+         const currentConfig = settings?.paymentGateways?.find(g => g.id === gateway.id) || {};
          
          return (
            <PaymentGatewayCard 
@@ -20,7 +20,7 @@ export default function PaymentSettings({ settings }) {
               gateway={gateway}
               currentConfig={currentConfig}
               onSave={async (enabled, data) => {
-                  const res = await updatePaymentConfig(gateway.id, enabled, data);
+                  const res = await updatePaymentGateway(gateway.id, enabled, data);
                   if(res.success) addToast(`${gateway.label} settings saved`, "success");
                   else addToast(res.error, "error");
               }}
@@ -33,14 +33,19 @@ export default function PaymentSettings({ settings }) {
 
 function PaymentGatewayCard({ gateway, currentConfig, onSave }) {
     const [enabled, setEnabled] = useState(currentConfig.enabled ?? false);
-    const [isExpanded, setIsExpanded] = useState(false); // Collapsible
+    const [isExpanded, setIsExpanded] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
 
     const handleSubmit = async (e) => {
         e.preventDefault();
         setIsSaving(true);
         const formData = new FormData(e.target);
-        const data = Object.fromEntries(formData);
+        
+        // FIX: Sanitize all inputs by trimming whitespace
+        const data = {};
+        for (const [key, value] of formData.entries()) {
+            data[key] = typeof value === 'string' ? value.trim() : value;
+        }
         
         await onSave(enabled, data);
         setIsSaving(false);
@@ -66,7 +71,6 @@ function PaymentGatewayCard({ gateway, currentConfig, onSave }) {
                     <button onClick={() => setIsExpanded(!isExpanded)} className="text-gray-400 hover:text-gray-600">
                         {isExpanded ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
                     </button>
-                    {/* Master Toggle */}
                     <button 
                         type="button"
                         onClick={() => setEnabled(!enabled)}
@@ -77,7 +81,6 @@ function PaymentGatewayCard({ gateway, currentConfig, onSave }) {
                 </div>
             </div>
 
-            {/* Dynamic Configuration Form */}
             {(isExpanded || enabled) && (
                 <form onSubmit={handleSubmit} className="border-t border-gray-100 p-6 bg-gray-50/50 rounded-b-xl animate-in slide-in-from-top-2">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

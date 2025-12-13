@@ -1,4 +1,4 @@
-import { MessageCircle, Banknote, CreditCard, Smartphone } from "lucide-react";
+import { MessageCircle, Banknote, CreditCard, Smartphone, DollarSign } from "lucide-react";
 
 export const PAYMENT_GATEWAYS = [
   {
@@ -6,7 +6,7 @@ export const PAYMENT_GATEWAYS = [
     label: "Order on WhatsApp",
     description: "Allow customers to place orders via WhatsApp message and pay via UPI.",
     icon: <MessageCircle size={24} className="text-green-600" />,
-    supportsRedirect: true, // Takes user off-site
+    supportsRedirect: true, 
     fields: [
       { name: "phone", label: "WhatsApp Number (with country code)", type: "tel", placeholder: "919876543210", required: true },
       { name: "upiId", label: "UPI ID (VPA)", type: "text", placeholder: "merchant@upi", required: true },
@@ -24,7 +24,6 @@ export const PAYMENT_GATEWAYS = [
       { name: "additionalFee", label: "Additional Fee (Optional)", type: "number", placeholder: "0" }
     ]
   },
-  // Future Gateways (Examples of scalability)
   {
     id: "stripe",
     label: "Stripe",
