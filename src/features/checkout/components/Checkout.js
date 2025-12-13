@@ -2,26 +2,25 @@
 
 import { useState, useEffect } from "react";
 import { useAppDispatch, useAppSelector } from "@/lib/hooks";
-import { clearCart, setCart } from "@/features/cart/cartSlice";
+import { clearCart, setCart } from "@/features/cart/cartSlice"; // kept clearCart for manual payments ONLY
 import { createOrder } from "@/features/order/actions";
 import { processPayment } from "@/features/checkout/actions";
 import { validateCart } from "@/features/cart/actions";
 import { useRouter } from "next/navigation";
-import { MapPin, CheckCircle, Plus, Loader2, ShieldCheck, AlertCircle, Pencil, Trash2, X, MessageCircle } from "lucide-react";
+import { 
+    MapPin, CheckCircle, Loader2, AlertCircle, 
+    CreditCard, Banknote, Smartphone, ShieldCheck 
+} from "lucide-react";
 import Link from "next/link";
 import { useToast } from "@/context/ToastContext";
 import CheckoutAddressModal from "./CheckoutAddressModal";
-
-// Stripe Imports
+import StripePaymentModal from "./StripePaymentModal"; 
 import { loadStripe } from "@stripe/stripe-js";
-import { Elements, PaymentElement, useStripe, useElements } from "@stripe/react-stripe-js";
 
+// Helper for Razorpay
 const loadRazorpayScript = () => {
     return new Promise((resolve) => {
-        if (window.Razorpay) {
-            resolve(true);
-            return;
-        }
+        if (window.Razorpay) { resolve(true); return; }
         const script = document.createElement("script");
         script.src = "https://checkout.razorpay.com/v1/checkout.js";
         script.onload = () => resolve(true);
@@ -35,281 +34,238 @@ export default function Checkout({ userId, savedAddresses = [], availableGateway
   const dispatch = useAppDispatch();
   const { addToast } = useToast();
   
-  // 1. DEFENSIVE SELECTOR: Safe access to Redux state
   const cartState = useAppSelector((state) => state.cart || {});
   const items = Array.isArray(cartState?.items) ? cartState.items : [];
   const totalPrice = cartState?.totalPrice || 0;
 
-  // FIX: Ensure safeAddresses is always an array
-  const safeAddresses = Array.isArray(savedAddresses) ? savedAddresses : [];
-
   const [selectedAddressIndex, setSelectedAddressIndex] = useState(0);
   const [paymentMethod, setPaymentMethod] = useState(availableGateways[0]?.id || "");
-  
   const [isProcessing, setIsProcessing] = useState(false);
   const [isVerifying, setIsVerifying] = useState(true);
   const [isMounted, setIsMounted] = useState(false);
   const [isAddressModalOpen, setIsAddressModalOpen] = useState(false);
-  const [addressToEdit, setAddressToEdit] = useState(null);
-
+  
+  // Stripe State
   const [stripePromise, setStripePromise] = useState(null);
   const [clientSecret, setClientSecret] = useState("");
   const [isStripeModalOpen, setIsStripeModalOpen] = useState(false);
 
-  useEffect(() => {
-    setIsMounted(true);
-  }, []);
+  useEffect(() => { setIsMounted(true); }, []);
 
-  // 2. SERVER-SIDE VALIDATION
+  // Inventory Check on Mount
   useEffect(() => {
     if (!isMounted) return;
-
     const verifyStock = async () => {
-        if (items.length === 0) { 
-            setIsVerifying(false);
-            return;
-        }
-        
+        if (items.length === 0) { setIsVerifying(false); return; }
         try {
             const result = await validateCart(items);
             if (result?.warnings?.length > 0) {
                 result.warnings.forEach(w => addToast(w, "error"));
                 if (result.cart) dispatch(setCart(result.cart)); 
-                if (result.cart?.items?.length !== items.length) { router.push('/cart'); }
+                if (result.cart?.items?.length !== items.length) router.push('/cart'); 
             }
-        } catch (error) { console.error("Validation error:", error); } 
+        } catch (error) { console.error(error); } 
         finally { setIsVerifying(false); }
     };
     verifyStock();
   }, [isMounted]);
 
-  // 3. LOADING STATE
+  // Loading State
   if (!isMounted || (isVerifying && items.length > 0)) {
-    return <div className="flex flex-col items-center justify-center min-h-[60vh]"><Loader2 className="h-10 w-10 text-indigo-600 animate-spin mb-4" /><p className="text-gray-500 font-medium">Loading checkout...</p></div>;
+    return <div className="flex flex-col items-center justify-center min-h-[60vh]"><Loader2 className="animate-spin h-10 w-10 text-indigo-600 mb-4" /><p className="text-gray-500">Checking inventory...</p></div>;
   }
 
-  // 4. EMPTY STATE
+  // Empty Cart State
   if (items.length === 0) {
-     return <div className="flex flex-col items-center justify-center min-h-[60vh] text-center px-4"><div className="bg-gray-100 p-4 rounded-full mb-4"><AlertCircle className="h-8 w-8 text-gray-400" /></div><h2 className="text-2xl font-bold mb-2 text-gray-900">Your cart is empty</h2><Link href="/"><button className="bg-indigo-600 text-white px-6 py-2.5 rounded-full font-medium">Return to Shop</button></Link></div>
+     return (
+        <div className="flex flex-col items-center justify-center min-h-[60vh] px-4 text-center">
+            <div className="bg-gray-100 p-4 rounded-full mb-4"><AlertCircle className="h-8 w-8 text-gray-400" /></div>
+            <h2 className="text-2xl font-bold mb-2 text-gray-900">Your cart is empty</h2>
+            <Link href="/"><button className="bg-indigo-600 text-white px-6 py-2.5 rounded-full font-medium">Return to Shop</button></Link>
+        </div>
+     );
   }
 
   const handlePlaceOrder = async () => {
-    if (safeAddresses.length === 0) return addToast("Add shipping address", "warning");
+    if (!savedAddresses?.length) return addToast("Add shipping address", "warning");
     if (!paymentMethod) return addToast("Select payment method", "warning");
 
     setIsProcessing(true);
+    const addressToUse = savedAddresses[selectedAddressIndex];
 
-    const addressToUse = safeAddresses[selectedAddressIndex];
-    const orderRes = await createOrder(userId, {
-        shippingAddress: {
-            street: addressToUse.street,
-            city: addressToUse.city,
-            state: addressToUse.state,
-            zip: addressToUse.zip,
-            country: addressToUse.country,
-            phone: addressToUse.phone 
-        },
-        paymentMethod
-    });
-
-    if (!orderRes.success) {
-        addToast(orderRes.error, "error");
-        setIsProcessing(false);
-        return;
-    }
-
-    const paymentRes = await processPayment(orderRes.orderId);
-
-    if (!paymentRes.success) {
-        addToast(paymentRes.error, "error");
-        setIsProcessing(false);
-        return;
-    }
-
-    dispatch(clearCart());
-
-    if (paymentRes.type === 'stripe') {
-        setStripePromise(loadStripe(paymentRes.publishableKey));
-        setClientSecret(paymentRes.clientSecret);
-        setIsStripeModalOpen(true);
-        // Note: isProcessing stays true until modal closes or payment completes
-    } 
-    else if (paymentRes.type === 'razorpay') {
-        const loaded = await loadRazorpayScript();
-        if (!loaded) {
-            addToast("Razorpay SDK failed to load", "error");
-            setIsProcessing(false);
-            return;
-        }
-
-        const options = {
-            key: paymentRes.keyId,
-            amount: paymentRes.amount,
-            currency: paymentRes.currency,
-            name: "Dream Collection",
-            description: "Order Payment",
-            order_id: paymentRes.orderId,
-            handler: function (response) {
-                // Success
-                router.push(`/profile?success=true`);
-            },
-            modal: {
-                ondismiss: function() {
-                    setIsProcessing(false);
-                    addToast("Payment cancelled", "info");
-                }
-            },
-            prefill: {
-                contact: addressToUse.phone
-            },
-            theme: { color: "#4F46E5" }
-        };
-        const rzp = new window.Razorpay(options);
-        rzp.open();
-    } 
-    else if (paymentRes.type === 'manual') {
-        const gateway = availableGateways.find(g => g.id === paymentMethod);
-        
-        if (paymentMethod === 'whatsapp') {
-             const config = gateway.config;
-             const orderId = orderRes.orderId.slice(-6).toUpperCase();
-             const total = (totalPrice * 1.02).toFixed(2);
-             const message = `*New Order: #${orderId}*
-Total: ₹${total}
-Pay to: ${config.upiId}
-Address: ${addressToUse.street}, ${addressToUse.zip}
-${config.instructions}`;
-             window.location.href = `https://wa.me/${config.phone}?text=${encodeURIComponent(message)}`;
-        } else {
-             addToast("Order placed successfully!", "success");
-             router.push(`/profile?success=true`);
-        }
-    }
-  };
-
-  const openAddModal = () => { setAddressToEdit(null); setIsAddressModalOpen(true); };
-  const openEditModal = (e, addr) => { e.stopPropagation(); setAddressToEdit(addr); setIsAddressModalOpen(true); };
-  const tax = totalPrice * 0.02;
-  const finalTotal = totalPrice + tax;
-
-  return (
-    <div className="max-w-7xl mx-auto px-4 py-8 md:py-10 flex flex-col lg:flex-row gap-8 lg:gap-12">
-      
-      {/* LEFT COLUMN */}
-      <div className="flex-1 space-y-6">
-        
-        {/* Address Section */}
-        <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
-            <div className="flex justify-between items-center mb-4">
-                <h2 className="text-lg font-bold flex items-center gap-2"><span className="bg-indigo-600 text-white w-6 h-6 rounded-full flex items-center justify-center text-xs">1</span> Shipping</h2>
-                <button onClick={openAddModal} className="text-sm text-indigo-600 hover:underline flex items-center gap-1"><Plus size={16}/> New Address</button>
-            </div>
-            {safeAddresses.length > 0 ? (
-                <div className="grid gap-4">
-                   {safeAddresses.map((addr, idx) => (
-                      <div key={addr._id} onClick={() => setSelectedAddressIndex(idx)} className={`p-4 border rounded-lg cursor-pointer relative ${selectedAddressIndex === idx ? 'border-indigo-600 bg-indigo-50/30' : 'hover:border-gray-300'}`}>
-                         {selectedAddressIndex === idx && <CheckCircle className="absolute top-3 right-3 text-indigo-600" size={18} />}
-                         <p className="font-medium">{addr.street}</p>
-                         <p className="text-sm text-gray-500">{addr.city}, {addr.zip}</p>
-                      </div>
-                   ))}
-                </div>
-            ) : <div className="text-center py-8 text-gray-500">No addresses found.</div>}
-        </div>
-
-        {/* Payment Section */}
-        <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
-            <h2 className="text-lg font-bold flex items-center gap-2 mb-4"><span className="bg-indigo-600 text-white w-6 h-6 rounded-full flex items-center justify-center text-xs">2</span> Payment</h2>
-            <div className="space-y-3">
-               {availableGateways.length > 0 ? availableGateways.map((gw) => (
-                  <label key={gw.id} className={`flex items-center gap-4 p-4 border rounded-xl cursor-pointer ${paymentMethod === gw.id ? 'border-indigo-600 bg-indigo-50/40' : 'hover:border-gray-300'}`}>
-                      <input type="radio" name="payment" value={gw.id} checked={paymentMethod === gw.id} onChange={(e) => setPaymentMethod(e.target.value)} className="w-5 h-5 text-indigo-600" />
-                      <div className="flex-1">
-                          <span className="font-semibold text-gray-900 text-sm flex items-center gap-2">
-                              {gw.id === 'whatsapp' ? <MessageCircle size={18} className="text-green-600"/> : gw.id === 'stripe' ? <ShieldCheck size={18} className="text-indigo-600"/> : <CheckCircle size={18}/>} 
-                              {gw.label}
-                          </span>
-                          <p className="text-xs text-gray-500">{gw.description || "Secure payment"}</p>
-                      </div>
-                  </label>
-               )) : <p className="text-sm text-yellow-600">No payment methods available.</p>}
-            </div>
-        </div>
-      </div>
-
-      {/* RIGHT COLUMN: Summary */}
-      <div className="lg:w-96 shrink-0 w-full">
-          <div className="bg-gray-50 p-6 rounded-xl border border-gray-200 lg:sticky lg:top-24 shadow-sm">
-              <h2 className="text-lg font-bold mb-4 text-gray-900">Order Summary</h2>
-              <div className="space-y-2 mb-4 max-h-60 overflow-y-auto pr-2 scrollbar-thin">
-                  {items.map(i => (
-                      <div key={i._id} className="flex justify-between text-sm">
-                          <span className="truncate w-32">{i.name} (x{i.quantity})</span>
-                          <span className="font-medium">${(i.price * i.quantity).toFixed(2)}</span>
-                      </div>
-                  ))}
-              </div>
-              <div className="border-t pt-4 flex justify-between font-bold text-lg">
-                  <span>Total</span><span>${(totalPrice * 1.02).toFixed(2)}</span>
-              </div>
-              <button onClick={handlePlaceOrder} disabled={isProcessing} className="w-full mt-6 bg-indigo-600 text-white py-3 rounded-lg font-bold hover:bg-indigo-700 disabled:opacity-50 flex justify-center">
-                  {isProcessing ? <Loader2 className="animate-spin" /> : "Place Order"}
-              </button>
-          </div>
-      </div>
-      
-      <CheckoutAddressModal isOpen={isAddressModalOpen} onClose={() => setIsAddressModalOpen(false)} userId={userId} addressToEdit={addressToEdit} />
-
-      {/* STRIPE MODAL UI */}
-      {isStripeModalOpen && clientSecret && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-in fade-in">
-            <div className="bg-white p-6 rounded-xl w-full max-w-md shadow-2xl relative">
-                <button 
-                    onClick={() => { setIsStripeModalOpen(false); setIsProcessing(false); }}
-                    className="absolute top-4 right-4 text-gray-400 hover:text-gray-600"
-                >
-                    <X size={20}/>
-                </button>
-                <h3 className="font-bold text-lg mb-6">Complete Payment</h3>
-                <Elements stripe={stripePromise} options={{ clientSecret }}>
-                    <StripePaymentForm onSuccess={() => router.push('/profile?success=true')} />
-                </Elements>
-            </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-function StripePaymentForm({ onSuccess }) {
-    const stripe = useStripe();
-    const elements = useElements();
-    const [msg, setMsg] = useState("");
-    const [isPaying, setIsPaying] = useState(false);
-
-    const handleSubmit = async (e) => {
-        e.preventDefault();
-        if (!stripe || !elements) return;
-        setIsPaying(true);
-
-        const { error } = await stripe.confirmPayment({
-            elements,
-            confirmParams: { return_url: `${window.location.origin}/profile?success=true` },
+    try {
+        // 1. Create Order
+        const orderRes = await createOrder(userId, {
+            shippingAddress: { ...addressToUse },
+            paymentMethod
         });
+        if (!orderRes.success) throw new Error(orderRes.error || "Order creation failed");
 
-        if (error) {
-            setMsg(error.message);
-            setIsPaying(false);
+        // 2. Process Payment
+        const paymentRes = await processPayment(orderRes.orderId);
+        if (!paymentRes.success) throw new Error(paymentRes.error || "Payment init failed");
+
+        // 3. Gateway Logic
+        if (paymentRes.type === 'stripe') {
+            // DO NOT CLEAR CART HERE. Wait for Stripe success redirect.
+            setStripePromise(loadStripe(paymentRes.publishableKey));
+            setClientSecret(paymentRes.clientSecret);
+            setIsStripeModalOpen(true);
+            // keep isProcessing true so UI stays locked
+        } 
+        // ... inside handlePlaceOrder ...
+
+else if (paymentRes.type === 'razorpay') {
+    // 1. Load the Script
+    const loaded = await loadRazorpayScript();
+    if (!loaded) throw new Error("Razorpay SDK failed to load. Check your internet connection.");
+
+    // 2. Initialize Options
+    const options = {
+        key: paymentRes.keyId, // Comes from backend
+        amount: paymentRes.amount, // In paise (e.g., 50000 for 500.00)
+        currency: paymentRes.currency,
+        name: "Dream Collection",
+        description: "Order Payment",
+        order_id: paymentRes.orderId, // Razorpay Order ID (starts with order_...)
+        
+        // Success Handler
+        handler: function (response) {
+            // Log for debugging
+            console.log("Razorpay Payment ID:", response.razorpay_payment_id);
+            console.log("Razorpay Signature:", response.razorpay_signature);
+            
+            // Redirect and Clear Cart
+            dispatch(clearCart());
+            router.push('/profile?success=true');
+        },
+
+        // User Details for Pre-fill
+        prefill: {
+            name: "Customer", // You could pass user.name here if available
+            contact: addressToUse.phone // Important: Prefills phone for UPI
+        },
+        theme: {
+            color: "#4F46E5" // Matches your Indigo theme
+        },
+
+        // CRITICAL FIX: Handle Modal Closure
+        modal: {
+            ondismiss: function() {
+                addToast("Payment cancelled", "info");
+                setIsProcessing(false); // Unfreeze the button
+            }
         }
     };
 
-    return (
-        <form onSubmit={handleSubmit} className="space-y-4">
-            <PaymentElement />
-            {msg && <p className="text-red-500 text-sm">{msg}</p>}
-            <button disabled={!stripe || isPaying} className="w-full bg-indigo-600 text-white py-2 rounded-lg font-bold disabled:opacity-50">
-                {isPaying ? "Processing..." : "Pay Now"}
-            </button>
-        </form>
-    );
+    // 3. Open Modal
+    const rzp = new window.Razorpay(options);
+    
+    // Handle initialization failures
+    rzp.on('payment.failed', function (response){
+        addToast(response.error.description || "Payment failed", "error");
+        setIsProcessing(false);
+    });
+
+    rzp.open();
+    // Note: We do NOT set isProcessing(false) here. We wait for handler or ondismiss.
+}
+        else {
+            // Manual Payments (COD/WhatsApp) -> Clear immediately and redirect
+            dispatch(clearCart());
+            router.push('/profile?success=true');
+        }
+
+    } catch (error) {
+        console.error("Checkout Error:", error);
+        addToast(error.message, "error");
+        setIsProcessing(false);
+    }
+  };
+
+  const selectedAddress = savedAddresses[selectedAddressIndex];
+  const taxAmount = totalPrice * 0.02; 
+  const finalTotal = totalPrice + taxAmount;
+
+  return (
+    <div className="bg-gray-50/50 min-h-screen py-12 px-4 md:px-8">
+        <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-8">
+            {/* Left Column */}
+            <div className="lg:col-span-7 space-y-8">
+                {/* Address Selector */}
+                <section className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+                    <div className="flex justify-between items-center mb-6">
+                        <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2"><MapPin className="text-indigo-600" size={24} /> Shipping Address</h2>
+                        {savedAddresses.length < 2 && <button onClick={() => setIsAddressModalOpen(true)} className="text-sm text-indigo-600 font-medium hover:underline">+ Add New</button>}
+                    </div>
+                    {savedAddresses.length > 0 ? (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {savedAddresses.map((addr, idx) => (
+                                <div key={idx} onClick={() => setSelectedAddressIndex(idx)} className={`cursor-pointer relative p-4 rounded-lg border-2 transition-all ${selectedAddressIndex === idx ? 'border-indigo-600 bg-indigo-50/30' : 'border-gray-200 hover:border-indigo-300'}`}>
+                                    {selectedAddressIndex === idx && <CheckCircle size={20} className="absolute top-3 right-3 text-indigo-600" />}
+                                    <p className="font-semibold text-gray-900">{addr.street}</p>
+                                    <p className="text-sm text-gray-500">{addr.city}, {addr.zip}</p>
+                                </div>
+                            ))}
+                        </div>
+                    ) : (
+                        <div className="text-center py-8 bg-gray-50 border border-dashed rounded-lg">
+                            <button onClick={() => setIsAddressModalOpen(true)} className="px-4 py-2 bg-white border rounded-md text-sm font-medium">Add Delivery Address</button>
+                        </div>
+                    )}
+                </section>
+
+                {/* Payment Selector */}
+                <section className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+                    <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2 mb-6"><CreditCard className="text-indigo-600" size={24} /> Payment Method</h2>
+                    <div className="space-y-3">
+                        {availableGateways.map((gw) => (
+                            <label key={gw.id} className={`flex items-center gap-4 p-4 rounded-lg border-2 cursor-pointer transition-all ${paymentMethod === gw.id ? 'border-indigo-600 bg-indigo-50/30' : 'border-gray-200'}`}>
+                                <input type="radio" name="payment" className="w-5 h-5 accent-indigo-600" checked={paymentMethod === gw.id} onChange={() => setPaymentMethod(gw.id)} />
+                                <div className="flex-1">
+                                    <p className="font-semibold text-gray-900">{gw.label}</p>
+                                    <p className="text-xs text-gray-500">{gw.description}</p>
+                                </div>
+                            </label>
+                        ))}
+                    </div>
+                </section>
+            </div>
+
+            {/* Right Column: Summary */}
+            <div className="lg:col-span-5">
+                <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 sticky top-24">
+                    <h3 className="text-lg font-bold text-gray-900 mb-6">Order Summary</h3>
+                    <div className="max-h-[300px] overflow-y-auto space-y-4 mb-6">
+                        {items.map((item) => (
+                            <div key={item._id} className="flex gap-4">
+                                <img src={item.image} alt={item.name} className="w-16 h-16 object-cover rounded-md bg-gray-50 mix-blend-multiply" />
+                                <div className="flex-1"><p className="text-sm font-medium">{item.name}</p><p className="text-xs text-gray-500">Qty: {item.quantity}</p></div>
+                                <p className="text-sm font-semibold">${(item.price * item.quantity).toFixed(2)}</p>
+                            </div>
+                        ))}
+                    </div>
+                    <div className="border-t pt-4 space-y-3">
+                        <div className="flex justify-between font-bold text-lg"><span>Total</span><span>${finalTotal.toFixed(2)}</span></div>
+                    </div>
+                    <button onClick={handlePlaceOrder} disabled={isProcessing} className="w-full mt-8 bg-indigo-600 text-white py-4 rounded-xl font-bold hover:bg-indigo-700 disabled:opacity-70 flex items-center justify-center gap-2">
+                        {isProcessing ? <Loader2 className="animate-spin" size={20} /> : `Pay $${finalTotal.toFixed(2)}`}
+                    </button>
+                    <p className="text-xs text-gray-400 text-center mt-4 flex justify-center gap-1"><ShieldCheck size={12} /> Secure Checkout</p>
+                </div>
+            </div>
+        </div>
+
+        <CheckoutAddressModal isOpen={isAddressModalOpen} onClose={() => setIsAddressModalOpen(false)} userId={userId} />
+
+        {/* Modal Logic */}
+        {isStripeModalOpen && clientSecret && stripePromise && (
+            <StripePaymentModal
+                stripePromise={stripePromise}
+                clientSecret={clientSecret}
+                onClose={() => { setIsStripeModalOpen(false); setIsProcessing(false); }}
+            />
+        )}
+    </div>
+  );
 }
