@@ -23,7 +23,7 @@ function Navbar() {
                 {/* Desktop Menu */}
                 <div className="hidden sm:flex items-center gap-8 font-medium text-sm text-gray-600">
                     <Link href="/" className="hover:text-indigo-600 transition">Home</Link>
-                    <Link href="/shop" className="hover:text-indigo-600 transition">Shop</Link>
+                    <Link href="/" className="hover:text-indigo-600 transition">About</Link>
                     <Link href="/contact" className="hover:text-indigo-600 transition">Contact</Link>
 
                     {/* Search Bar */}
