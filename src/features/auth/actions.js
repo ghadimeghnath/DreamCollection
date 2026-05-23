@@ -29,11 +29,22 @@ export const registerUser = async (formData) => {
         verificationTokenExpire
     });
 
+   // Save user first
     await newUser.save();
-    await sendVerificationEmail(email, verificationToken);
+
+    // CRITICAL: Await the email result
+    const emailResult = await sendVerificationEmail(email, verificationToken);
+
+    if (!emailResult.success) {
+      // If email fails, we don't throw an error (the account is created)
+      // but we tell the user to use 'Resend'
+      return { 
+        success: true, 
+        message: "Account created! However, the email failed to send. Please try logging in to resend it." 
+      };
+    }
 
     return { success: true, message: "Confirmation email sent!" };
-
   } catch (err) {
     console.error("Registration Error:", err);
     return { error: "Something went wrong!" };

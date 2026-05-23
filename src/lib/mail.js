@@ -2,10 +2,19 @@ import nodemailer from "nodemailer";
 
 const transporter = nodemailer.createTransport({
   service: "gmail",
+  pool: true, // Use a connection pool
   auth: {
     user: process.env.SMTP_EMAIL,
     pass: process.env.SMTP_PASSWORD, 
   },
+});
+// Verify connection configuration on startup
+transporter.verify(function (error, success) {
+  if (error) {
+    console.log("SMTP Connection Error:", error);
+  } else {
+    console.log("SMTP Server is ready to take messages");
+  }
 });
 
 export const sendVerificationEmail = async (email, token) => {
@@ -30,11 +39,13 @@ export const sendVerificationEmail = async (email, token) => {
   };
 
   try {
-    await transporter.sendMail(mailOptions);
+    // Explicitly await the sendMail promise
+    const info = await transporter.sendMail(mailOptions);
+    console.log("Email sent: %s", info.messageId);
     return { success: true };
   } catch (error) {
-    console.error("Email error:", error);
-    return { success: false, error: "Failed to send email" };
+    console.error("Nodemailer Error:", error);
+    return { success: false, error: error.message };
   }
 };
 
