@@ -6,18 +6,32 @@ import Order from '@/features/order/models/Order';
 import { User } from '@/features/auth/models/User';
 import { revalidatePath } from 'next/cache';
 import mongoose from 'mongoose';
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth.config";
+
+// Helper for User Authorization
+async function getAuthenticatedUser() {
+  const session = await getServerSession(authOptions);
+  if (!session || !session.user) {
+    throw new Error("Unauthorized: Please sign in.");
+  }
+  return session.user;
+}
 
 // --- User Profile Actions ---
 
 export const updateUserProfile = async (userId, data) => {
   await dbConnect();
-
-  if (!mongoose.Types.ObjectId.isValid(userId)) {
-    return { error: "Invalid User Session" };
-  }
-
+  
   try {
-    // Prevent updating email/password via this simple route for security
+    const currentUser = await getAuthenticatedUser();
+    
+    // Authorization Check
+    if (currentUser.id !== userId) {
+      throw new Error("Unauthorized access to profile.");
+    }
+
+    // Prevent updating email/password/isAdmin via this route
     const { email, password, isAdmin, ...safeData } = data;
     
     await User.findByIdAndUpdate(userId, safeData);
@@ -26,7 +40,7 @@ export const updateUserProfile = async (userId, data) => {
     return { success: true };
   } catch (error) {
     console.error("Profile Update Error:", error);
-    return { error: "Failed to update profile." };
+    return { error: error.message || "Failed to update profile." };
   }
 };
 
@@ -34,9 +48,10 @@ export const updateUserProfile = async (userId, data) => {
 
 export const getUserAddresses = async (userId) => {
   await dbConnect();
-  
-  if (!mongoose.Types.ObjectId.isValid(userId)) {
-    console.error("Invalid User ID in getUserAddresses:", userId);
+  const currentUser = await getAuthenticatedUser();
+
+  if (currentUser.id !== userId) {
+    // Return empty if trying to access someone else's addresses
     return [];
   }
 
@@ -53,58 +68,83 @@ export const getUserAddresses = async (userId) => {
 
 export const addAddress = async (userId, addressData) => {
   await dbConnect();
-  
-  // FIX: Validate ID format to prevent App Crash
-  if (!mongoose.Types.ObjectId.isValid(userId)) {
-    return { error: "Session invalid. Please sign out and sign in again." };
-  }
+  try {
+    const currentUser = await getAuthenticatedUser();
 
-  // Enforce Max 2 rule
-  const count = await Address.countDocuments({ userId });
-  if (count >= 2) {
-    return { error: "Maximum of 2 addresses allowed." };
-  }
+    if (currentUser.id !== userId) {
+       throw new Error("Unauthorized.");
+    }
 
-  await Address.create({ userId, ...addressData });
-  revalidatePath('/profile');
-  return { success: true };
+    // Enforce Max 2 rule
+    const count = await Address.countDocuments({ userId });
+    if (count >= 2) {
+      return { error: "Maximum of 2 addresses allowed." };
+    }
+
+    await Address.create({ userId, ...addressData });
+    revalidatePath('/profile');
+    return { success: true };
+  } catch (error) {
+      return { error: error.message };
+  }
 };
 
 export const updateAddress = async (userId, addressId, addressData) => {
   await dbConnect();
+  try {
+    const currentUser = await getAuthenticatedUser();
+    
+    if (currentUser.id !== userId) {
+        throw new Error("Unauthorized.");
+    }
 
-  if (!mongoose.Types.ObjectId.isValid(userId)) {
-    return { error: "Session invalid." };
+    // Security: Ensure the address actually belongs to this user in the query
+    const updatedAddress = await Address.findOneAndUpdate(
+      { _id: addressId, userId: currentUser.id }, 
+      { ...addressData },
+      { new: true }
+    );
+
+    if (!updatedAddress) {
+      return { error: "Address not found or unauthorized." };
+    }
+
+    revalidatePath('/profile');
+    return { success: true };
+  } catch(error) {
+      return { error: error.message };
   }
-
-  const updatedAddress = await Address.findOneAndUpdate(
-    { _id: addressId, userId }, 
-    { ...addressData },
-    { new: true }
-  );
-
-  if (!updatedAddress) {
-    return { error: "Address not found or unauthorized." };
-  }
-
-  revalidatePath('/profile');
-  return { success: true };
 };
 
 export const deleteAddress = async (addressId) => {
   await dbConnect();
-  await Address.findByIdAndDelete(addressId);
-  revalidatePath('/profile');
-  return { success: true };
+  try {
+    const currentUser = await getAuthenticatedUser();
+    
+    // Security: Only delete if it matches the ID AND the current user's ID
+    const deleted = await Address.findOneAndDelete({ 
+        _id: addressId, 
+        userId: currentUser.id 
+    });
+
+    if (!deleted) return { error: "Address not found or unauthorized." };
+
+    revalidatePath('/profile');
+    return { success: true };
+  } catch (error) {
+      return { error: "Failed to delete address" };
+  }
 };
 
 // --- Order Actions ---
 
 export const getUserOrders = async (userId) => {
   await dbConnect();
-
-  if (!mongoose.Types.ObjectId.isValid(userId)) {
-    return [];
+  
+  // Note: We don't throw here to avoid crashing UI if session is stale, just return empty
+  const session = await getServerSession(authOptions);
+  if (!session || session.user.id !== userId) {
+      return [];
   }
 
   const orders = await Order.find({ userId }).sort({ createdAt: -1 }).lean();

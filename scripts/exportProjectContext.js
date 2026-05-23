@@ -78,7 +78,7 @@ function scan(dir, output = {}) {
 console.log("📂 Scanning project...");
 
 // Clear old file BEFORE writing new content (guaranteed overwrite)
-const outputFile = path.join(ROOT_DIR, "project-context.json");
+const outputFile = path.join(ROOT_DIR, "project-context-ai.json");
 try {
   fs.writeFileSync(outputFile, "{}", "utf8");
 } catch (err) {

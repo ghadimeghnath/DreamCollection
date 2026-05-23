@@ -3,7 +3,7 @@
 import { useEffect, useRef } from "react";
 import { useSession } from "next-auth/react";
 import { useAppDispatch, useAppSelector } from "@/lib/hooks";
-import { fetchCart, saveCartToDB } from "../actions";
+import { fetchCart, saveCartToDB, syncLocalCartWithServer } from "../actions";
 import { setCart } from "../cartSlice";
 
 export default function CartSync() {
@@ -11,31 +11,38 @@ export default function CartSync() {
   const dispatch = useAppDispatch();
   const cart = useAppSelector((state) => state.cart);
   
-  // Ref to track if this is the first mount to avoid overwriting DB with empty Redux
   const isInitialMount = useRef(true);
+  const hasSyncedLogin = useRef(false);
 
-  // 1. LOAD: When user logs in, fetch their cart from DB
+  // 1. LOAD & MERGE Logic
   useEffect(() => {
-    if (session?.user?.id) {
-      const loadCart = async () => {
-        const dbCart = await fetchCart(session.user.id);
-        if (dbCart) {
-          dispatch(setCart(dbCart));
+    // ✅ FIX: Only run if session changes (Login), NOT when cart items change
+    if (session?.user?.id && !hasSyncedLogin.current) {
+      const initializeCart = async () => {
+        hasSyncedLogin.current = true; 
+
+        if (cart.items.length > 0) {
+            console.log("Merging guest cart with server...");
+            const mergedCart = await syncLocalCartWithServer(session.user.id, cart.items);
+            if (mergedCart) dispatch(setCart(mergedCart));
+        } else {
+            console.log("Fetching server cart...");
+            const dbCart = await fetchCart(session.user.id);
+            if (dbCart) dispatch(setCart(dbCart));
         }
       };
-      loadCart();
+      initializeCart();
     }
-  }, [session?.user?.id, dispatch]);
+    // ❌ REMOVED: cart.items.length (This was causing the loop/overwrite)
+  }, [session?.user?.id, dispatch]); 
 
-  // 2. SAVE: When Redux cart changes, save to DB (Debounced slightly)
+  // 2. SAVE (Debounced) - Keeps your existing save logic
   useEffect(() => {
-    // Don't save if it's the first mount (avoids wiping DB with empty init state)
     if (isInitialMount.current) {
       isInitialMount.current = false;
       return;
     }
 
-    // Only save if user is logged in
     if (session?.user?.id && cart.isLoaded) {
       const timer = setTimeout(() => {
         saveCartToDB(session.user.id, {
@@ -43,11 +50,11 @@ export default function CartSync() {
           totalQuantity: cart.totalQuantity,
           totalPrice: cart.totalPrice
         });
-      }, 1000); // 1-second debounce to reduce DB writes
+      }, 1000); 
 
       return () => clearTimeout(timer);
     }
   }, [cart, session?.user?.id]);
 
-  return null; // This component renders nothing
+  return null;
 }

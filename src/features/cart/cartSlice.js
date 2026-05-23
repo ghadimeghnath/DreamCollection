@@ -7,11 +7,17 @@ const initialState = {
   isLoaded: false,
 };
 
+const calculateTotals = (items) => {
+  const totalQuantity = items.reduce((sum, item) => sum + item.quantity, 0);
+  const totalPrice = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+  return { totalQuantity, totalPrice };
+};
+
 const cartSlice = createSlice({
   name: 'cart',
   initialState,
   reducers: {
-    // Action to replace entire cart (used for DB fetch and Validation sync)
+    // Used to sync server cart (DB) or validated cart to Redux
     setCart: (state, action) => {
       state.items = action.payload.items || [];
       state.totalQuantity = action.payload.totalQuantity || 0;
@@ -23,31 +29,48 @@ const cartSlice = createSlice({
       const newItem = action.payload;
       const itemId = newItem._id || newItem.id;
 
-      if (!itemId) {
-        console.error("Cart Error: Item has no ID", newItem);
-        return; 
-      }
+      if (!itemId) return;
 
       const existingItem = state.items.find((item) => item._id === itemId);
+      
+      // Use provided stock or fallback to a safe default if strictly not provided
+      // If stock is 0, we shouldn't have been able to call this, but as a safety guard:
+      const maxStock = newItem.stock !== undefined ? newItem.stock : 999;
+      const quantityToAdd = newItem.quantity || 1;
 
       if (!existingItem) {
-        state.items.push({
-          _id: itemId,
-          name: newItem.name,
-          price: newItem.price,
-          image: newItem.image,
-          slug: newItem.slug,
-          series: newItem.series,
-          year: newItem.year,
-          quantity: newItem.quantity || 1,
-        });
+        // New Item: Add only if valid stock
+        if (quantityToAdd <= maxStock && maxStock > 0) {
+            state.items.push({
+              _id: itemId,
+              name: newItem.name,
+              price: newItem.price,
+              image: newItem.image,
+              slug: newItem.slug,
+              series: newItem.series,
+              year: newItem.year,
+              stock: maxStock, // Persist stock limit in cart state
+              quantity: quantityToAdd,
+            });
+        }
       } else {
-        existingItem.quantity += (newItem.quantity || 1);
+        // Existing Item: Increment responsibly
+        // Update the stored stock limit in case it changed
+        existingItem.stock = maxStock; 
+        
+        const newTotal = existingItem.quantity + quantityToAdd;
+        
+        if (newTotal <= maxStock) {
+            existingItem.quantity = newTotal;
+        } else {
+            // Cap at max stock if they try to exceed it
+            existingItem.quantity = maxStock;
+        }
       }
       
-      // Recalculate totals from scratch to avoid drift
-      state.totalQuantity = state.items.reduce((sum, item) => sum + item.quantity, 0);
-      state.totalPrice = state.items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+      const totals = calculateTotals(state.items);
+      state.totalQuantity = totals.totalQuantity;
+      state.totalPrice = totals.totalPrice;
       state.isLoaded = true;
     },
 
@@ -62,8 +85,9 @@ const cartSlice = createSlice({
            existingItem.quantity--;
         }
         
-        state.totalQuantity = state.items.reduce((sum, item) => sum + item.quantity, 0);
-        state.totalPrice = state.items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+        const totals = calculateTotals(state.items);
+        state.totalQuantity = totals.totalQuantity;
+        state.totalPrice = totals.totalPrice;
         state.isLoaded = true;
       }
     },
@@ -72,8 +96,9 @@ const cartSlice = createSlice({
       const id = action.payload;
       state.items = state.items.filter(item => item._id !== id);
       
-      state.totalQuantity = state.items.reduce((sum, item) => sum + item.quantity, 0);
-      state.totalPrice = state.items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+      const totals = calculateTotals(state.items);
+      state.totalQuantity = totals.totalQuantity;
+      state.totalPrice = totals.totalPrice;
       state.isLoaded = true;
     },
     

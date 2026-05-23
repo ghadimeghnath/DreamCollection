@@ -1,11 +1,11 @@
 "use client";
 
 import { deleteProduct } from "../actions";
-import { Trash2, ExternalLink, Pencil, Search, Filter, ChevronLeft, ChevronRight, X } from "lucide-react";
+import { Trash2, ExternalLink, Pencil, Search, Filter, ChevronLeft, ChevronRight, X, AlertCircle } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { useState, useEffect } from "react"; 
-import { useToast } from "@/context/ToastContext"; // Import toast
+import { useToast } from "@/context/ToastContext";
 
 export default function AdminProductTable({ initialProducts, pagination }) {
     const router = useRouter();
@@ -132,82 +132,79 @@ export default function AdminProductTable({ initialProducts, pagination }) {
                                 <th className="px-3 py-3 md:px-6">Product</th>
                                 <th className="px-6 py-3 hidden md:table-cell">Category</th>
                                 <th className="px-6 py-3 hidden lg:table-cell">Series</th>
-                                <th className="px-3 py-3 md:px-6">Price</th>
-                                <th className="px-6 py-3 hidden sm:table-cell">Stock</th>
-                                <th className="px-3 py-3 text-right md:px-6">Actions</th>
+                                <th className="px-3 py-3 md:px-6 text-center">Price</th>
+                                <th className="px-3 py-3 md:px-6 text-center">Stock</th>
+                                <th className="px-3 py-3 md:px-6 text-right">Actions</th>
                             </tr>
                         </thead>
-                        <tbody className="divide-y divide-gray-200">
-                            {initialProducts.map((product) => (
-                                <tr key={product._id} className="hover:bg-gray-50 transition-colors">
-                                    <td className="px-3 py-4 md:px-6">
-                                        <div className="flex items-center gap-3">
-                                            <div className="h-10 w-10 shrink-0 overflow-hidden rounded-md border border-gray-200 bg-white">
-                                                <img 
-                                                    src={product.images?.[0] || "/placeholder.png"} 
-                                                    alt="" 
-                                                    className="h-full w-full object-contain" 
-                                                />
+                        <tbody className="divide-y divide-gray-100">
+                            {initialProducts.length > 0 ? (
+                                initialProducts.map((product) => (
+                                    <tr key={product._id} className="hover:bg-gray-50/50 transition">
+                                        <td className="px-3 py-3 md:px-6">
+                                            <div className="flex items-center gap-3 md:gap-4">
+                                                <div className="h-10 w-10 md:h-12 md:w-12 rounded-md bg-gray-100 border border-gray-200 overflow-hidden shrink-0">
+                                                    {product.images?.[0] && (
+                                                        <img 
+                                                            src={product.images[0]} 
+                                                            alt={product.name} 
+                                                            className="h-full w-full object-cover mix-blend-multiply" 
+                                                        />
+                                                    )}
+                                                </div>
+                                                <div className="max-w-[150px] md:max-w-xs truncate">
+                                                    <div className="font-medium text-gray-900 truncate">{product.name}</div>
+                                                    <div className="text-xs text-gray-500">{product.year}</div>
+                                                </div>
                                             </div>
-                                            <div className="flex flex-col min-w-0 max-w-[120px] sm:max-w-[140px] md:max-w-[200px]">
-                                                <span className="font-medium text-gray-900 truncate" title={product.name}>
-                                                    {product.name}
+                                        </td>
+                                        <td className="px-6 py-4 hidden md:table-cell">
+                                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                                                {product.category}
+                                            </span>
+                                        </td>
+                                        <td className="px-6 py-4 hidden lg:table-cell text-gray-500">
+                                            {product.series}
+                                        </td>
+                                        <td className="px-3 py-4 md:px-6 text-center font-medium text-gray-900">
+                                            ${product.price}
+                                        </td>
+                                        <td className="px-3 py-4 md:px-6 text-center">
+                                            {/* Numeric Stock Badge */}
+                                            {product.stock > 0 ? (
+                                                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${product.stock < 5 ? 'bg-orange-100 text-orange-800' : 'bg-green-100 text-green-800'}`}>
+                                                    {product.stock} Units
                                                 </span>
-                                                <span className="text-xs text-gray-400 md:hidden truncate">
-                                                    {product.category}
+                                            ) : (
+                                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                                                    Out of Stock
                                                 </span>
+                                            )}
+                                        </td>
+                                        <td className="px-3 py-4 md:px-6 text-right">
+                                            <div className="flex items-center justify-end gap-2">
+                                                <Link href={`/admin/edit/${product._id}`}>
+                                                    <button className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition" title="Edit">
+                                                        <Pencil size={18} />
+                                                    </button>
+                                                </Link>
+                                                <button 
+                                                    onClick={() => handleDelete(product._id)}
+                                                    className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition" 
+                                                    title="Delete"
+                                                >
+                                                    <Trash2 size={18} />
+                                                </button>
                                             </div>
-                                        </div>
-                                    </td>
-                                    <td className="px-6 py-4 hidden md:table-cell">
-                                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
-                                            {product.category}
-                                        </span>
-                                    </td>
-                                    <td className="px-6 py-4 hidden lg:table-cell text-gray-500">{product.series}</td>
-                                    <td className="px-3 py-4 font-medium text-gray-900 md:px-6">
-                                        ${product.price}
-                                    </td>
-                                    <td className="px-6 py-4 hidden sm:table-cell">
-                                        <span className={`inline-flex items-center rounded-full px-2 py-1 text-xs font-medium ${product.inStock ? 'bg-green-50 text-green-700 ring-1 ring-green-600/20' : 'bg-red-50 text-red-700 ring-1 ring-red-600/20'}`}>
-                                            {product.inStock ? 'In Stock' : 'Out of Stock'}
-                                        </span>
-                                    </td>
-                                    <td className="px-3 py-4 text-right md:px-6">
-                                        <div className="flex justify-end gap-1 md:gap-2">
-                                            <Link href={`/admin/edit/${product._id}`}>
-                                                <button className="rounded-md p-1.5 md:p-2 text-gray-400 hover:bg-indigo-50 hover:text-indigo-600 transition" title="Edit">
-                                                    <Pencil size={16} />
-                                                </button>
-                                            </Link>
-                                            <Link href={`/products/${product.category}/${product.slug}`} target="_blank" className="hidden sm:inline-block">
-                                                <button className="rounded-md p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-900 transition" title="View">
-                                                    <ExternalLink size={16} />
-                                                </button>
-                                            </Link>
-                                            <button 
-                                                onClick={() => handleDelete(product._id)}
-                                                className="rounded-md p-1.5 md:p-2 text-gray-400 hover:bg-red-50 hover:text-red-600 transition"
-                                                title="Delete"
-                                            >
-                                                <Trash2 size={16} />
-                                            </button>
-                                        </div>
-                                    </td>
-                                </tr>
-                            ))}
-                            {initialProducts.length === 0 && (
+                                        </td>
+                                    </tr>
+                                ))
+                            ) : (
                                 <tr>
-                                    <td colSpan="6" className="px-6 py-12 text-center text-gray-400">
-                                        <div className="flex flex-col items-center gap-2">
-                                            <Search size={32} className="opacity-20" />
-                                            <p>No products found matching your filters.</p>
-                                            <button 
-                                                onClick={handleClearFilters}
-                                                className="text-indigo-600 hover:underline text-sm font-medium"
-                                            >
-                                                Clear all filters
-                                            </button>
+                                    <td colSpan="6" className="text-center py-12 text-gray-500">
+                                        <div className="flex flex-col items-center justify-center gap-2">
+                                            <AlertCircle size={32} className="text-gray-300"/>
+                                            <p>No products found matching your criteria.</p>
                                         </div>
                                     </td>
                                 </tr>
@@ -215,38 +212,30 @@ export default function AdminProductTable({ initialProducts, pagination }) {
                         </tbody>
                     </table>
                 </div>
-
-                {/* --- Pagination Footer --- */}
-                {pagination.totalPages > 1 && (
-                    <div className="border-t border-gray-200 px-4 py-3 flex flex-col sm:flex-row items-center justify-between bg-gray-50/50 gap-3 sm:gap-0">
-                        <p className="text-sm text-gray-500 hidden sm:block">
-                            Showing <span className="font-medium">{(pagination.currentPage - 1) * pagination.limit + 1}</span> to <span className="font-medium">{Math.min(pagination.currentPage * pagination.limit, pagination.totalItems)}</span> of <span className="font-medium">{pagination.totalItems}</span> results
-                        </p>
-                        
-                        <div className="flex gap-2 w-full sm:w-auto justify-between sm:justify-end">
-                            <button
-                                onClick={() => handlePageChange(pagination.currentPage - 1)}
-                                disabled={pagination.currentPage === 1}
-                                className="flex items-center gap-1 px-3 py-1.5 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition"
-                            >
-                                <ChevronLeft size={16} /> Previous
-                            </button>
-                            
-                            <span className="text-sm font-medium text-gray-700 flex items-center sm:hidden">
-                                Page {pagination.currentPage} of {pagination.totalPages}
-                            </span>
-
-                            <button
-                                onClick={() => handlePageChange(pagination.currentPage + 1)}
-                                disabled={pagination.currentPage === pagination.totalPages}
-                                className="flex items-center gap-1 px-3 py-1.5 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition"
-                            >
-                                Next <ChevronRight size={16} />
-                            </button>
-                        </div>
-                    </div>
-                )}
             </div>
+
+            {/* Pagination */}
+            {pagination.totalPages > 1 && (
+                <div className="flex justify-center items-center gap-4 mt-6">
+                    <button 
+                        onClick={() => handlePageChange(pagination.currentPage - 1)}
+                        disabled={pagination.currentPage === 1}
+                        className="p-2 border border-gray-300 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 transition"
+                    >
+                        <ChevronLeft size={20} />
+                    </button>
+                    <span className="text-sm font-medium text-gray-700">
+                        Page {pagination.currentPage} of {pagination.totalPages}
+                    </span>
+                    <button 
+                        onClick={() => handlePageChange(pagination.currentPage + 1)}
+                        disabled={pagination.currentPage === pagination.totalPages}
+                        className="p-2 border border-gray-300 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 transition"
+                    >
+                        <ChevronRight size={20} />
+                    </button>
+                </div>
+            )}
         </div>
-    )
+    );
 }

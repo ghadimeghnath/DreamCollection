@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { updatePaymentGateway } from "../../actions";
 import { useToast } from "@/context/ToastContext";
 import { Loader2, Save, ChevronDown, ChevronUp } from "lucide-react";
@@ -35,6 +35,32 @@ function PaymentGatewayCard({ gateway, currentConfig, onSave }) {
     const [enabled, setEnabled] = useState(currentConfig.enabled ?? false);
     const [isExpanded, setIsExpanded] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
+    
+    const formRef = useRef(null);
+
+    const handleToggle = async (e) => {
+        // Prevent click bubbling if necessary
+        e.stopPropagation(); 
+        
+        const newEnabledState = !enabled;
+        setEnabled(newEnabledState);
+
+        let data = {};
+        // 3. Only try to get data if the form is currently visible/expanded
+        if (formRef.current) {
+            const formData = new FormData(formRef.current);
+            for (const [key, value] of formData.entries()) {
+                data[key] = typeof value === 'string' ? value.trim() : value;
+            }
+        } else {
+            // If form is hidden, use the existing config from props
+            data = currentConfig.config || {};
+        }
+
+        setIsSaving(true);
+        await onSave(newEnabledState, data);
+        setIsSaving(false);
+    };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -68,12 +94,11 @@ function PaymentGatewayCard({ gateway, currentConfig, onSave }) {
                 </div>
                 
                 <div className="flex items-center gap-4">
-                    <button onClick={() => setIsExpanded(!isExpanded)} className="text-gray-400 hover:text-gray-600">
-                        {isExpanded ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
-                    </button>
+                    
                     <button 
-                        type="button"
-                        onClick={() => setEnabled(!enabled)}
+                       type="button"
+                        onClick={handleToggle} // Fixed: passing the event
+                        disabled={isSaving}
                         className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${enabled ? 'bg-indigo-600' : 'bg-gray-200'}`}
                     >
                         <span className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${enabled ? 'translate-x-5' : 'translate-x-0'}`} />
@@ -81,8 +106,8 @@ function PaymentGatewayCard({ gateway, currentConfig, onSave }) {
                 </div>
             </div>
 
-            {(isExpanded || enabled) && (
-                <form onSubmit={handleSubmit} className="border-t border-gray-100 p-6 bg-gray-50/50 rounded-b-xl animate-in slide-in-from-top-2">
+            {isExpanded && (
+                <form ref={formRef} onSubmit={handleSubmit} className="border-t border-gray-100 p-6 bg-gray-50/50 rounded-b-xl animate-in slide-in-from-top-2">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         {gateway.fields.map(field => (
                             <div key={field.name} className={field.type === 'textarea' ? 'md:col-span-2' : ''}>
@@ -114,6 +139,7 @@ function PaymentGatewayCard({ gateway, currentConfig, onSave }) {
                     <div className="mt-6 flex justify-end">
                         <button 
                             type="submit" 
+                            onClick={handleToggle}
                             disabled={isSaving}
                             className="flex items-center gap-2 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-70 transition px-6 py-2.5 rounded-lg shadow-sm"
                         >

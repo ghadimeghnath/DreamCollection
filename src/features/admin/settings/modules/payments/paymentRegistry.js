@@ -1,4 +1,4 @@
-import { MessageCircle, Banknote, CreditCard, Smartphone, DollarSign } from "lucide-react";
+import { MessageCircle, Banknote, CreditCard, Smartphone } from "lucide-react";
 
 export const PAYMENT_GATEWAYS = [
   {
@@ -36,14 +36,15 @@ export const PAYMENT_GATEWAYS = [
     ]
   },
   {
-    id: "razorpay",
-    label: "Razorpay",
-    description: "Indian payment gateway for Cards, UPI, and Netbanking.",
-    icon: <Smartphone size={24} className="text-blue-600" />,
+    id: "cashfree",
+    label: "Cashfree Payments",
+    description: "Accept payments via UPI, Cards, Netbanking using Cashfree.",
+    icon: <Smartphone size={24} className="text-orange-600" />,
     supportsRedirect: true,
     fields: [
-      { name: "keyId", label: "Key ID", type: "text", required: true },
-      { name: "keySecret", label: "Key Secret", type: "password", required: true }
+      { name: "appId", label: "App ID", type: "text", required: true },
+      { name: "secretKey", label: "Secret Key", type: "password", required: true },
+      { name: "isSandbox", label: "Sandbox Mode (Test)", type: "checkbox" } // Optional boolean for test mode
     ]
   }
 ];

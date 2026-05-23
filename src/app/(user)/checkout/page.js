@@ -27,11 +27,29 @@ export default async function CheckoutPage() {
   const enabledGateways = PAYMENT_GATEWAYS.filter(g => {
      const config = settings.paymentGateways?.find(sg => sg.id === g.id);
      return config?.enabled;
-  }).map(g => ({
-     ...g,
-     // Pass non-sensitive config (like instructions/UPI ID) to frontend if needed
-     config: settings.paymentGateways.find(sg => sg.id === g.id)?.config || {} 
-  }));
+  }).map(g => {
+    const fullConfig = settings.paymentGateways.find(sg => sg.id === g.id)?.config || {};
+    
+    // Create a safe config object with ONLY public keys
+    const safeConfig = {};
+    if (g.id === 'stripe') safeConfig.publishableKey = fullConfig.publishableKey;
+    if (g.id === 'cashfree') {
+        safeConfig.appId = fullConfig.appId;
+        safeConfig.isSandbox = fullConfig.isSandbox;
+    }
+    // COD and WhatsApp don't have secrets usually, but be careful
+    if (g.id === 'cod') safeConfig.additionalFee = fullConfig.additionalFee;
+    if (g.id === 'whatsapp') {
+        safeConfig.phone = fullConfig.phone;
+        safeConfig.upiId = fullConfig.upiId;
+        safeConfig.instructions = fullConfig.instructions;
+    }
+
+    return {
+        ...g,
+        config: safeConfig // ✅ Send only safe data
+    };
+});
 
   return (
     <div className="bg-gray-50 min-h-screen">

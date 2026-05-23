@@ -61,3 +61,34 @@ export const sendPasswordResetEmail = async (email, resetToken) => {
     return { success: false };
   }
 };
+
+// ✅ NEW: Order Confirmation Email
+export const sendOrderConfirmationEmail = async (email, orderId, amount) => {
+  const mailOptions = {
+    from: `"Dream Collection" <${process.env.SMTP_EMAIL}>`,
+    to: email,
+    subject: `Order Confirmed #${orderId.slice(-6).toUpperCase()}`,
+    html: `
+      <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e5e7eb; border-radius: 8px;">
+        <h2 style="color: #4F46E5; text-align: center;">Thank you for your order!</h2>
+        <p style="color: #374151; font-size: 16px;">Your order <strong>#${orderId}</strong> has been successfully placed.</p>
+        
+        <div style="background-color: #f3f4f6; padding: 15px; border-radius: 8px; margin: 20px 0;">
+           <p style="margin: 0; color: #374151;"><strong>Total Paid:</strong> ${amount}</p>
+        </div>
+
+        <p style="color: #374151;">We will notify you once your items are shipped.</p>
+        <br/>
+        <div style="text-align: center;">
+            <a href="${process.env.NEXTAUTH_URL}/profile" style="background-color: #4F46E5; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">View Order Details</a>
+        </div>
+      </div>
+    `,
+  };
+  try {
+    await transporter.sendMail(mailOptions);
+    console.log(`Order confirmation sent to ${email}`);
+  } catch (err) {
+    console.error("Order Email Failed:", err);
+  }
+};

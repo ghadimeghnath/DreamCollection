@@ -3,8 +3,18 @@
 import dbConnect from '@/lib/db';
 import StoreSettings from './models/StoreSettings';
 import { revalidatePath } from 'next/cache';
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth.config";
 
-export const getStoreSettings = async () => {
+// Helper for Admin Authorization
+async function requireAdmin() {
+  const session = await getServerSession(authOptions);
+  if (!session || session.user.role !== 'admin') {
+    throw new Error("Unauthorized: Admin access required");
+  }
+}
+// Add the 'mask = true' parameter here
+export const getStoreSettings = async (mask = true) => {
   await dbConnect();
   
   let settings = await StoreSettings.findOne().lean();
@@ -14,16 +24,28 @@ export const getStoreSettings = async () => {
     settings = await StoreSettings.findById(settings._id).lean();
   }
 
-  // Ensure paymentGateways array exists
   if (!settings.paymentGateways) settings.paymentGateways = [];
 
-  // SERIALIZATION FIX: Convert all ObjectIds and Dates to strings/numbers
+  const safePaymentGateways = settings.paymentGateways.map(gw => {
+    const safeConfig = { ...(gw.config || {}) };
+    
+    // ✅ ONLY mask if 'mask' is true
+    if (mask) {
+      const sensitiveKeys = ['secretKey', 'accessKey', 'password', 'webhookSecret'];
+      sensitiveKeys.forEach(key => {
+        if (safeConfig[key]) safeConfig[key] = "********";
+      });
+    }
+
+    return { ...gw, config: safeConfig };
+  });
+
   const serializedSettings = JSON.parse(JSON.stringify({
     ...settings,
     _id: settings._id.toString(),
-    paymentGateways: settings.paymentGateways.map(gw => ({
+    paymentGateways: safePaymentGateways.map(gw => ({
         ...gw,
-        _id: gw._id ? gw._id.toString() : undefined // Handle nested _id if it exists
+        _id: gw._id ? gw._id.toString() : undefined 
     }))
   }));
 
@@ -33,29 +55,40 @@ export const getStoreSettings = async () => {
 export const updatePaymentGateway = async (gatewayId, enabled, configData) => {
   await dbConnect();
   try {
+    await requireAdmin(); // PROTECTED
+
     const settings = await StoreSettings.findOne();
     
     if (!settings) {
-        // Create initial if missing
         await StoreSettings.create({
             paymentGateways: [{ id: gatewayId, enabled, config: configData }]
         });
     } else {
-        // Find existing gateway index
         const existingIndex = settings.paymentGateways.findIndex(g => g.id === gatewayId);
         
         if (existingIndex > -1) {
-            // Update existing
+            // SECURITY: Handle masking on save. 
+            // If the incoming configData has "********", we must preserve the OLD key.
+            const oldConfig = settings.paymentGateways[existingIndex].config || {};
+            const newConfig = { ...configData };
+
+            ['secretKey', 'accessKey', 'password', 'webhookSecret'].forEach(key => {
+                if (newConfig[key] === "********") {
+                    newConfig[key] = oldConfig[key]; // Restore the real key from DB
+                }
+            });
+
             settings.paymentGateways[existingIndex].enabled = enabled;
-            settings.paymentGateways[existingIndex].config = configData;
+            settings.paymentGateways[existingIndex].config = newConfig;
         } else {
-            // Add new
             settings.paymentGateways.push({ id: gatewayId, enabled, config: configData });
         }
         await settings.save();
     }
     
-    revalidatePath('/'); // Refresh app
+    revalidatePath('/checkout'); 
+    revalidatePath('/admin/settings');
+    revalidatePath('/'); 
     return { success: true, message: `${gatewayId} updated successfully` };
   } catch (error) {
     console.error("Update Error:", error);

@@ -9,10 +9,12 @@ const CartSchema = new mongoose.Schema({
   },
   items: [
     {
-      _id: { type: String, required: true }, // Product ID
-      name: { type: String, required: true },
-      price: { type: Number, required: true },
-      image: { type: String },
+      // ✅ FIX: Use 'productId' with a Reference to the Product model
+      productId: { 
+        type: mongoose.Schema.Types.ObjectId, 
+        ref: 'Product', 
+        required: true 
+      },
       quantity: { type: Number, required: true, default: 1 }
     }
   ],

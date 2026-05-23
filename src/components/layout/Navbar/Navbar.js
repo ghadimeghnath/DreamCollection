@@ -3,137 +3,116 @@ import Link from 'next/link';
 import { useAppSelector } from '@/lib/hooks';
 import { useState } from 'react';
 import { useSession, signOut } from 'next-auth/react';
+import { Menu, X } from 'lucide-react'; // Using lucide for cleaner icons
 
 function Navbar() {
     const { data: session } = useSession();
+    // Connect to the unified cart slice
     const totalQty = useAppSelector((state) => state.cart.totalQuantity);
-    const [open, setOpen] = useState(false); 
+    const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false); 
 
     return (
-        <nav className="flex items-center justify-between px-6 md:px-16 lg:px-24 xl:px-32 py-4 border-b border-gray-300 bg-white relative transition-all z-50">
-
-            <Link href="/">
-                <h1 className='font-semibold md:text-xl'>dream collection</h1>
-            </Link>
-
-            {/* Desktop Menu */}
-            <div className="hidden sm:flex items-center gap-8">
-                <Link href="/" className="hover:text-indigo-600 transition">Home</Link>
-                <Link href="#" className="hover:text-indigo-600 transition">About</Link>
-                <Link href="/contact" className="hover:text-indigo-600 transition">Contact</Link>
-
-                {/* Search Bar */}
-                <div className="hidden lg:flex items-center text-sm gap-2 border border-gray-300 px-3 rounded-full">
-                    <input className="py-1.5 w-full bg-transparent outline-none placeholder-gray-500" type="text" placeholder="Search products" />
-                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M10.836 10.615 15 14.695" stroke="#7A7B7D" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
-                        <path clipRule="evenodd" d="M9.141 11.738c2.729-1.136 4.001-4.224 2.841-6.898S7.67.921 4.942 2.057C2.211 3.193.94 6.281 2.1 8.955s4.312 3.92 7.041 2.783" stroke="#7A7B7D" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
-                    </svg>
-                </div>
-
-                {/* Cart Icon */}
-                <div className="relative cursor-pointer">
-                    <Link href={'/cart'}>
-                        <div className="relative">
-                            <svg width="18" height="18" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                <path d="M.583.583h2.333l1.564 7.81a1.17 1.17 0 0 0 1.166.94h5.67a1.17 1.17 0 0 0 1.167-.94l.933-4.893H3.5m2.333 8.75a.583.583 0 1 1-1.167 0 .583.583 0 0 1 1.167 0m6.417 0a.583.583 0 1 1-1.167 0 .583.583 0 0 1 1.167 0" stroke="#615fff" strokeLinecap="round" strokeLinejoin="round" />
-                            </svg>
-                            <span className="absolute -top-2 -right-3 text-xs text-white bg-indigo-500 w-[18px] h-[18px] rounded-full flex items-center justify-center">
-                                {totalQty}
-                            </span>
-                        </div>
-                    </Link>
-                </div>
-
-                {/* Profile Icon (ONLY when logged in) */}
-                {session && (
-                    <Link href="/profile">
-                        <div className="w-10 h-10 rounded-full overflow-hidden cursor-pointer border border-gray-200">
-                            {session.user?.image ? (
-                                <img src={session.user.image} className="w-full h-full object-cover" />
-                            ) : (
-                                <div className="w-full h-full bg-gray-100 flex items-center justify-center">
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
-                                        <circle cx="12" cy="7" r="4"></circle>
-                                    </svg>
-                                </div>
-                            )}
-                        </div>
-                    </Link>
-                )}
-
-                {/* If NOT logged in show Login */}
-                {!session && (
-                    <Link href="/login">
-                        <button className="cursor-pointer px-8 py-2 bg-indigo-500 hover:bg-indigo-600 transition text-white rounded-full">
-                            Login
-                        </button>
-                    </Link>
-                )}
-            </div>
-
-            {/* Mobile Navbar */}
-            <div className=" flex gap-4 justify-center items-center sm:hidden">
-
-                {/* Cart Icon */}
-                <Link href={'/cart'} className="relative cursor-pointer">
-                    <svg width="18" height="18" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M.583.583h2.333l1.564 7.81a1.17 1.17 0 0 0 1.166.94h5.67a1.17 1.17 0 0 0 1.167-.94l.933-4.893H3.5m2.333 8.75a.583.583 0 1 1-1.167 0 .583.583 0 0 1 1.167 0m6.417 0a.583.583 0 1 1-1.167 0 .583.583 0 0 1 1.167 0" stroke="#615fff" strokeLinecap="round" strokeLinejoin="round" />
-                    </svg>
-                    <span className="absolute -top-2 -right-3 text-xs text-white bg-indigo-500 w-[18px] h-[18px] rounded-full flex items-center justify-center">
-                        {totalQty}
-                    </span>
+        <nav className="sticky top-0 z-50 w-full bg-white/80 backdrop-blur-md border-b border-gray-200">
+            <div className="flex items-center justify-between px-6 md:px-16 lg:px-24 xl:px-32 py-4">
+                
+                {/* Logo */}
+                <Link href="/" className="z-50">
+                    <h1 className='font-bold text-xl md:text-2xl text-indigo-900'>dream collection</h1>
                 </Link>
 
-                {/* Mobile Profile Icon */}
-                {session && (
-                    <Link href="/profile">
-                        <div className="relative -right-2 w-8 h-8 rounded-full overflow-hidden border border-gray-200 cursor-pointer">
-                            {session.user?.image ? (
-                                <img src={session.user.image} className="w-full h-full object-cover" />
-                            ) : (
-                                <div className="w-full h-full bg-gray-100 flex items-center justify-center">
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
-                                        <circle cx="12" cy="7" r="4"></circle>
-                                    </svg>
-                                </div>
-                            )}
+                {/* Desktop Menu */}
+                <div className="hidden sm:flex items-center gap-8 font-medium text-sm text-gray-600">
+                    <Link href="/" className="hover:text-indigo-600 transition">Home</Link>
+                    <Link href="/shop" className="hover:text-indigo-600 transition">Shop</Link>
+                    <Link href="/contact" className="hover:text-indigo-600 transition">Contact</Link>
+
+                    {/* Search Bar */}
+                    <div className="hidden lg:flex items-center gap-2 border border-gray-300 px-4 py-1.5 rounded-full bg-gray-50 focus-within:bg-white focus-within:ring-2 focus-within:ring-indigo-100 transition">
+                        <input className="w-full bg-transparent outline-none placeholder-gray-400 text-sm" type="text" placeholder="Search products..." />
+                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M10.836 10.615 15 14.695" stroke="#9CA3AF" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                            <path clipRule="evenodd" d="M9.141 11.738c2.729-1.136 4.001-4.224 2.841-6.898S7.67.921 4.942 2.057C2.211 3.193.94 6.281 2.1 8.955s4.312 3.92 7.041 2.783" stroke="#9CA3AF" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
+                    </div>
+
+                    {/* Cart Icon */}
+                    <Link href={'/cart'} className="relative group">
+                        <div className="p-2 hover:bg-gray-100 rounded-full transition">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <circle cx="9" cy="21" r="1"></circle>
+                                <circle cx="20" cy="21" r="1"></circle>
+                                <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path>
+                            </svg>
                         </div>
+                        {totalQty > 0 && (
+                            <span className="absolute top-0 right-0 bg-indigo-600 text-white text-[10px] font-bold h-5 w-5 flex items-center justify-center rounded-full border-2 border-white transform translate-x-1 -translate-y-1">
+                                {totalQty > 99 ? '99+' : totalQty}
+                            </span>
+                        )}
                     </Link>
-                )}
-                
 
-                {/* Hamburger */}
-                <button onClick={(e) => {e.preventDefault; setOpen(!open)}} aria-label="Menu" className='cursor-pointer'>
-                    <svg width="21" height="15" viewBox="0 0 21 15" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <rect width="21" height="1.5" rx=".75" fill="#426287" />
-                        <rect x="8" y="6" width="13" height="1.5" rx=".75" fill="#426287" />
-                        <rect x="6" y="13" width="15" height="1.5" rx=".75" fill="#426287" />
-                    </svg>
-                </button>
+                    {/* Profile / Login */}
+                    {session ? (
+                        <Link href="/profile">
+                            <div className="w-9 h-9 rounded-full overflow-hidden border border-gray-200 hover:border-indigo-400 transition">
+                                {session.user?.image ? (
+                                    <img src={session.user.image} className="w-full h-full object-cover" alt="Profile" />
+                                ) : (
+                                    <div className="w-full h-full bg-indigo-100 flex items-center justify-center text-indigo-700 font-bold">
+                                        {session.user?.name?.[0] || 'U'}
+                                    </div>
+                                )}
+                            </div>
+                        </Link>
+                    ) : (
+                        <Link href="/login">
+                            <button className="px-6 py-2 bg-indigo-600 hover:bg-indigo-700 transition text-white rounded-full font-semibold shadow-sm text-sm">
+                                Login
+                            </button>
+                        </Link>
+                    )}
+                </div>
+
+                {/* Mobile Menu Toggle */}
+                <div className="flex items-center gap-4 sm:hidden">
+                    <Link href={'/cart'} className="relative">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <circle cx="9" cy="21" r="1"></circle>
+                            <circle cx="20" cy="21" r="1"></circle>
+                            <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path>
+                        </svg>
+                        {totalQty > 0 && (
+                            <span className="absolute -top-2 -right-2 bg-indigo-600 text-white text-[10px] font-bold h-5 w-5 flex items-center justify-center rounded-full border-2 border-white">
+                                {totalQty}
+                            </span>
+                        )}
+                    </Link>
+                    <button onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} className="text-gray-600">
+                        {isMobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
+                    </button>
+                </div>
             </div>
 
-            {/* Mobile Menu */}
-            <div className={`${open ? 'flex' : 'hidden'} absolute top-[60px] left-0 w-full bg-white shadow-md py-4 flex-col items-start gap-4 px-5 text-sm md:hidden z-40`}>
-
-                <Link href="/" onClick={() => setOpen(false)} className="block py-2 w-full border-b border-gray-100">Home</Link>
-
-                <Link href="/about" onClick={() => setOpen(false)} className="block py-2 w-full border-b border-gray-100">About</Link>
-
-                <Link href="/contact" onClick={() => setOpen(false)} className="block py-2 w-full border-b border-gray-100">Contact</Link>
-
-                {!session && (
-                    <Link href="/login" onClick={() => setOpen(false)} className="w-full">
-                        <button className="cursor-pointer px-6 py-2 mt-4 bg-indigo-500 hover:bg-indigo-600 transition text-white rounded-full text-sm w-full">
-                            Login
-                        </button>
-                    </Link>
-                ) }
-            </div>
+            {/* Mobile Dropdown */}
+            {isMobileMenuOpen && (
+                <div className="sm:hidden absolute top-16 left-0 w-full bg-white border-b border-gray-200 shadow-xl py-4 px-6 flex flex-col gap-4 z-40">
+                    <Link href="/" className="text-gray-700 font-medium py-2 border-b border-gray-50" onClick={() => setIsMobileMenuOpen(false)}>Home</Link>
+                    <Link href="/shop" className="text-gray-700 font-medium py-2 border-b border-gray-50" onClick={() => setIsMobileMenuOpen(false)}>Shop</Link>
+                    <Link href="/contact" className="text-gray-700 font-medium py-2 border-b border-gray-50" onClick={() => setIsMobileMenuOpen(false)}>Contact</Link>
+                    
+                    {session ? (
+                        <Link href="/profile" className="flex items-center gap-3 py-2 text-indigo-600 font-medium" onClick={() => setIsMobileMenuOpen(false)}>
+                            <span>My Profile</span>
+                        </Link>
+                    ) : (
+                        <Link href="/login" onClick={() => setIsMobileMenuOpen(false)}>
+                            <button className="w-full py-3 bg-indigo-600 text-white rounded-lg font-medium">Login</button>
+                        </Link>
+                    )}
+                </div>
+            )}
         </nav>
-    )
+    );
 }
 
 export default Navbar;

@@ -10,10 +10,7 @@ export default function SettingsLayout({ initialSettings }) {
   // Navigation Items
   const tabs = [
     { id: "payments", label: "Payments", icon: <CreditCard size={18} /> },
-    { id: "shipping", label: "Shipping", icon: <Truck size={18} /> },
-    { id: "branding", label: "Branding", icon: <Palette size={18} /> },
-    { id: "notifications", label: "Notifications", icon: <Bell size={18} /> },
-    { id: "security", label: "Security", icon: <Shield size={18} /> },
+    { id: "Cost Management", label: "Cost Management", icon: <Truck size={18} /> },
   ];
 
   return (
@@ -43,30 +40,7 @@ export default function SettingsLayout({ initialSettings }) {
        {/* 2. Main Content Area */}
        <div className="flex-1 min-h-[400px]">
           {activeTab === 'payments' && <PaymentSettings settings={initialSettings.payments} />}
-          
-          {activeTab === 'shipping' && (
-             <PlaceholderModule title="Shipping Configuration" icon={<Truck size={32} />} />
-          )}
-          {activeTab === 'branding' && (
-             <PlaceholderModule title="Store Branding" icon={<Palette size={32} />} />
-          )}
-          {activeTab === 'notifications' && (
-             <PlaceholderModule title="Notification Rules" icon={<Bell size={32} />} />
-          )}
-          {activeTab === 'security' && (
-             <PlaceholderModule title="Security Settings" icon={<Shield size={32} />} />
-          )}
        </div>
     </div>
   );
-}
-
-function PlaceholderModule({ title, icon }) {
-    return (
-        <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-12 text-center flex flex-col items-center justify-center h-full text-gray-400">
-            <div className="bg-gray-50 p-4 rounded-full mb-4">{icon}</div>
-            <h3 className="text-lg font-semibold text-gray-900 mb-1">{title}</h3>
-            <p>This module is coming soon.</p>
-        </div>
-    )
 }
